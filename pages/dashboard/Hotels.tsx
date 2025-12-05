@@ -57,20 +57,30 @@ const Hotels: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
+  console.log("➡️ handleSubmit HOTEL", { editingId, formData });
 
+  try {
     if (editingId) {
+      console.log("✏️ Actualizando hotel...");
       await updateHotelDB({
         id: editingId,
         ...formData,
       });
     } else {
+      console.log("➕ Creando hotel...");
       await createHotel(formData);
     }
 
+    console.log("✅ Guardado OK, recargando lista...");
     setIsModalOpen(false);
-    loadHotels();
-  };
+    await loadHotels();
+  } catch (err: any) {
+    console.error("❌ Error guardando hotel:", err);
+    alert("Error guardando hotel: " + (err?.message || "ver consola"));
+  }
+};
+
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("¿Eliminar hotel?")) return;
