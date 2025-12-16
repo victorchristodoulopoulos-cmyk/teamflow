@@ -24,11 +24,11 @@ import Hotels from "./pages/dashboard/Hotels";
 import Transport from "./pages/dashboard/Transport";
 import Payments from "./pages/dashboard/Payments";
 
-// TEAM Layout + Pages
-import TeamDashboardLayout from "./layouts/TeamDashboardLayout";
+// TEAM
+import TeamDashboardLayout from "./layouts/teamdashboardlayout";
 import TeamDashboardHome from "./pages/team/TeamDashboardHome";
+import TeamProtectedRoute from "./layouts/TeamProtectedRoute";
 
-// Public Layout wrapper
 const PublicLayout = () => (
   <div className="min-h-screen flex flex-col font-sans bg-carbon">
     <Navbar />
@@ -43,7 +43,8 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <Routes>
-        {/* Public Routes */}
+        
+        {/* PUBLIC */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/servicios" element={<ServicesPage />} />
@@ -53,10 +54,10 @@ const App: React.FC = () => {
           <Route path="/contacto" element={<ContactPage />} />
         </Route>
 
-        {/* Auth */}
+        {/* LOGIN */}
         <Route path="/login" element={<Login />} />
 
-        {/* Admin Portal */}
+        {/* ADMIN */}
         <Route path="/dashboard" element={<DashboardLayout />}>
           <Route index element={<Overview />} />
           <Route path="tournaments" element={<Tournaments />} />
@@ -67,13 +68,21 @@ const App: React.FC = () => {
           <Route path="payments" element={<Payments />} />
         </Route>
 
-        {/* TEAM PORTAL */}
-        <Route path="/team-dashboard" element={<TeamDashboardLayout />}>
+        {/* TEAM */}
+        <Route
+          path="/team-dashboard"
+          element={
+            <TeamProtectedRoute>
+              <TeamDashboardLayout />
+            </TeamProtectedRoute>
+          }
+        >
           <Route index element={<TeamDashboardHome />} />
         </Route>
 
-        {/* Fallback */}
+        {/* FALLBACK */}
         <Route path="*" element={<Navigate to="/" replace />} />
+      
       </Routes>
     </HashRouter>
   );

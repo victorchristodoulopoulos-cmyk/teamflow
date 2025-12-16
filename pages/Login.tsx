@@ -20,34 +20,47 @@ const Login: React.FC = () => {
       // 🔐 LOGIN
       // ======================================================
       if (mode === "login") {
-  
-  // 1) LOGIN DE EQUIPO (primero)
-  const { data: teamUser } = await supabase
-    .from("team_users")
-    .select("*")
-    .eq("email", email)
-    .eq("password", password)
-    .maybeSingle();
+        console.log("🔑 LOGIN intent:", { email, password });
 
-  if (teamUser) {
-    localStorage.setItem("team_user", JSON.stringify(teamUser));
-    navigate("/team-dashboard");  // ✔ FIX DE RUTA CORRECTA
-    return; // ✔ MUY IMPORTANTE: DETIENE SIGNINWITHPASSWORD()
-  }
+        // 1) LOGIN DE EQUIPO (primero)
+        const {
+          data: teamUser,
+          error: teamError,
+        } = await supabase
+          .from("team_users")
+          .select("*")
+          .eq("email", email)
+          .eq("password", password)
+          .maybeSingle();
 
-  // 2) LOGIN DE ADMIN (Supabase Auth)
-  const { error: adminError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+        console.log("👀 Resultado team_users:", { teamUser, teamError });
 
-  if (!adminError) {
-    navigate("/dashboard");
-    return;
-  }
+        if (teamError) {
+          console.error("❌ Error al consultar team_users:", teamError);
+        }
 
-  throw new Error("Credenciales incorrectas");
-}
+        if (teamUser) {
+          console.log("✅ Login de equipo OK, guardando en localStorage");
+          localStorage.setItem("team_user", JSON.stringify(teamUser));
+          navigate("/team-dashboard"); // ruta del router
+          return; // MUY IMPORTANTE
+        }
+
+        // 2) LOGIN DE ADMIN (Supabase Auth)
+        const { error: adminError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        console.log("👀 Resultado login admin:", { adminError });
+
+        if (!adminError) {
+          navigate("/dashboard");
+          return;
+        }
+
+        throw new Error("Credenciales incorrectas");
+      }
 
       // ======================================================
       // 🆕 SIGNUP — SOLO ADMINS
@@ -67,6 +80,7 @@ const Login: React.FC = () => {
         navigate("/dashboard");
       }
     } catch (err: any) {
+      console.error("🔥 Error en handleSubmit:", err);
       setError(err.message ?? "Error de autenticación");
     } finally {
       setLoading(false);
@@ -76,7 +90,6 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-deep">
       <div className="bg-brand-surface border border-white/10 rounded-2xl p-8 w-full max-w-md">
-
         <h1 className="text-2xl font-display font-bold text-white mb-4">
           {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
         </h1>
@@ -88,7 +101,6 @@ const Login: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           <div>
             <label className="block text-sm text-slate-400 mb-1">Email</label>
             <input
@@ -96,12 +108,14 @@ const Login: React.FC = () => {
               required
               className="w-full bg-brand-deep border border-white/10 rounded-lg p-3 text-white"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value.trim())}
             />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Contraseña</label>
+            <label className="block text-sm text-slate-400 mb-1">
+              Contraseña
+            </label>
             <input
               type="password"
               required
@@ -126,7 +140,9 @@ const Login: React.FC = () => {
 
         <button
           className="mt-4 text-sm text-slate-400 hover:text-white"
-          onClick={() => setMode((m) => (m === "login" ? "signup" : "login"))}
+          onClick={() =>
+            setMode((m) => (m === "login" ? "signup" : "login"))
+          }
         >
           {mode === "login"
             ? "¿No tienes cuenta? Crear una"
