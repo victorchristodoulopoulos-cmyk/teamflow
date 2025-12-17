@@ -4,7 +4,13 @@ import { useStore } from '../../context/Store';
 import { useNavigate } from 'react-router-dom';
 
 const Overview: React.FC = () => {
-  const { tournaments, teams, players, payments } = useStore();
+  const {
+  tournaments = [],
+  teams = [],
+  players = [],
+  payments = [],
+} = useStore();
+
   const navigate = useNavigate();
 
   // Calculations

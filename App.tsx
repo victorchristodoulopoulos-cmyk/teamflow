@@ -1,33 +1,37 @@
 import React from "react";
 import { HashRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 
-// Public components
+// Public
 import LandingPage from "./pages/LandingPage";
-import ServicesPage from "./pages/public/Services";
-import HowItWorksPage from "./pages/public/HowItWorksPage";
-import BenefitsPage from "./pages/public/Benefits";
-import PricingPage from "./pages/public/PricingPage";
-import ContactPage from "./pages/public/Contact";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
-// Auth
+// Login
+import LoginSelector from "./pages/LoginSelector";
 import Login from "./pages/Login";
 
-// Admin Layout + Pages
+// Admin
 import DashboardLayout from "./layouts/DashboardLayout";
 import Overview from "./pages/dashboard/Overview";
-import Tournaments from "./pages/dashboard/Tournaments";
-import Teams from "./pages/dashboard/Teams";
-import Documentation from "./pages/dashboard/Documentation";
-import Hotels from "./pages/dashboard/Hotels";
-import Transport from "./pages/dashboard/Transport";
-import Payments from "./pages/dashboard/Payments";
+import AdminProtectedRoute from "./layouts/AdminProtectedRoute";
 
-// TEAM
-import TeamDashboardLayout from "./layouts/teamdashboardlayout";
+// Team
+import TeamDashboardLayout from "./layouts/TeamDashboardLayout";
 import TeamDashboardHome from "./pages/team/TeamDashboardHome";
+import TeamPlayers from "./pages/team/TeamPlayers";
 import TeamProtectedRoute from "./layouts/TeamProtectedRoute";
+
+// Family (de momento placeholder simple)
+const FamilyLoginPlaceholder = () => (
+  <div className="min-h-screen flex items-center justify-center bg-carbon text-white">
+    <div className="bg-brand-surface border border-white/10 rounded-2xl p-8 max-w-lg">
+      <div className="text-2xl font-bold">Family portal</div>
+      <p className="text-slate-400 mt-2">
+        Aquí irá el login de familias. (Ahora mismo solo es demo.)
+      </p>
+    </div>
+  </div>
+);
 
 const PublicLayout = () => (
   <div className="min-h-screen flex flex-col font-sans bg-carbon">
@@ -43,32 +47,30 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <Routes>
-        
-        {/* PUBLIC */}
+        {/* Public */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/servicios" element={<ServicesPage />} />
-          <Route path="/como-funciona" element={<HowItWorksPage />} />
-          <Route path="/beneficios" element={<BenefitsPage />} />
-          <Route path="/precios" element={<PricingPage />} />
-          <Route path="/contacto" element={<ContactPage />} />
         </Route>
 
-        {/* LOGIN */}
-        <Route path="/login" element={<Login />} />
+        {/* Login selector + logins */}
+        <Route path="/login" element={<LoginSelector />} />
+        <Route path="/login/admin" element={<Login />} />
+        <Route path="/login/team" element={<Login />} />
+        <Route path="/login/family" element={<FamilyLoginPlaceholder />} />
 
-        {/* ADMIN */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
+        {/* Admin */}
+        <Route
+          path="/dashboard"
+          element={
+            <AdminProtectedRoute>
+              <DashboardLayout />
+            </AdminProtectedRoute>
+          }
+        >
           <Route index element={<Overview />} />
-          <Route path="tournaments" element={<Tournaments />} />
-          <Route path="teams" element={<Teams />} />
-          <Route path="documentation" element={<Documentation />} />
-          <Route path="hotels" element={<Hotels />} />
-          <Route path="transport" element={<Transport />} />
-          <Route path="payments" element={<Payments />} />
         </Route>
 
-        {/* TEAM */}
+        {/* Team */}
         <Route
           path="/team-dashboard"
           element={
@@ -78,11 +80,11 @@ const App: React.FC = () => {
           }
         >
           <Route index element={<TeamDashboardHome />} />
+          <Route path="jugadores" element={<TeamPlayers />} />
         </Route>
 
-        {/* FALLBACK */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      
       </Routes>
     </HashRouter>
   );
