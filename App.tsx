@@ -1,5 +1,4 @@
-import React from "react";
-import { HashRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 // Public
 import LandingPage from "./pages/LandingPage";
@@ -9,32 +8,31 @@ import Footer from "./components/Footer";
 // Login
 import LoginSelector from "./pages/LoginSelector";
 import Login from "./pages/Login";
+import LoginFamily from "./pages/LoginFamily";
 
 // Admin
 import DashboardLayout from "./layouts/DashboardLayout";
 import Overview from "./pages/dashboard/Overview";
-import AdminProtectedRoute from "./layouts/AdminProtectedRoute";
 
 // Team
 import TeamDashboardLayout from "./layouts/TeamDashboardLayout";
 import TeamDashboardHome from "./pages/team/TeamDashboardHome";
 import TeamPlayers from "./pages/team/TeamPlayers";
-import TeamProtectedRoute from "./layouts/TeamProtectedRoute";
 
-// Family (de momento placeholder simple)
-const FamilyLoginPlaceholder = () => (
-  <div className="min-h-screen flex items-center justify-center bg-carbon text-white">
-    <div className="bg-brand-surface border border-white/10 rounded-2xl p-8 max-w-lg">
-      <div className="text-2xl font-bold">Family portal</div>
-      <p className="text-slate-400 mt-2">
-        Aquí irá el login de familias. (Ahora mismo solo es demo.)
-      </p>
-    </div>
-  </div>
-);
+// Family
+import FamilyDashboardLayout from "./layouts/FamilyDashboardLayout";
+import FamilyDashboardHome from "./pages/family/FamilyDashboardHome";
+import FamilyPayments from "./pages/family/FamilyPayments";
+import FamilyDocuments from "./pages/family/FamilyDocuments";
+import FamilyProfile from "./pages/family/FamilyProfile";
+
+// Guards
+import AdminRoute from "./layouts/AdminRoute";
+import TeamRoute from "./layouts/TeamRoute";
+import FamilyRoute from "./layouts/FamilyRoute";
 
 const PublicLayout = () => (
-  <div className="min-h-screen flex flex-col font-sans bg-carbon">
+  <div className="min-h-screen flex flex-col bg-carbon">
     <Navbar />
     <main className="flex-grow pt-20">
       <Outlet />
@@ -43,51 +41,64 @@ const PublicLayout = () => (
   </div>
 );
 
-const App: React.FC = () => {
+export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
-        {/* Public */}
+        {/* PUBLIC */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
         </Route>
 
-        {/* Login selector + logins */}
+        {/* LOGIN */}
         <Route path="/login" element={<LoginSelector />} />
-        <Route path="/login/admin" element={<Login />} />
-        <Route path="/login/team" element={<Login />} />
-        <Route path="/login/family" element={<FamilyLoginPlaceholder />} />
+        <Route path="/login/admin" element={<Login mode="admin" />} />
+        <Route path="/login/team" element={<Login mode="team" />} />
+        <Route path="/login/family" element={<LoginFamily />} />
 
-        {/* Admin */}
+        {/* ADMIN */}
         <Route
           path="/dashboard"
           element={
-            <AdminProtectedRoute>
+            <AdminRoute>
               <DashboardLayout />
-            </AdminProtectedRoute>
+            </AdminRoute>
           }
         >
           <Route index element={<Overview />} />
         </Route>
 
-        {/* Team */}
+        {/* TEAM */}
         <Route
           path="/team-dashboard"
           element={
-            <TeamProtectedRoute>
+            <TeamRoute>
               <TeamDashboardLayout />
-            </TeamProtectedRoute>
+            </TeamRoute>
           }
         >
           <Route index element={<TeamDashboardHome />} />
           <Route path="jugadores" element={<TeamPlayers />} />
         </Route>
 
-        {/* Fallback */}
+        {/* FAMILY */}
+        <Route
+          path="/family-dashboard"
+          element={
+            <FamilyRoute>
+              <FamilyDashboardLayout />
+            </FamilyRoute>
+          }
+        >
+          <Route index element={<FamilyDashboardHome />} />
+          <Route path="pagos" element={<FamilyPayments />} />
+          <Route path="documentos" element={<FamilyDocuments />} />
+          <Route path="perfil" element={<FamilyProfile />} />
+        </Route>
+
+        {/* FALLBACK */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
-};
-
-export default App;
+}

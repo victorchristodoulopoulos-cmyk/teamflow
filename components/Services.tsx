@@ -1,67 +1,104 @@
-import React from 'react';
-import { ClipboardCheck, Hotel, Bus, FileText, CreditCard, MessageCircle } from 'lucide-react';
+// src/components/Services.tsx
+import React from "react";
+import {
+  ClipboardCheck,
+  Hotel,
+  Bus,
+  FileText,
+  CreditCard,
+  MessageCircle,
+} from "lucide-react";
 
 const services = [
   {
-    icon: <ClipboardCheck size={32} />,
-    title: "Inscripciones a Torneos",
-    description: "Tramitamos todas las fichas y registros con la organización del evento."
+    icon: ClipboardCheck,
+    title: "Inscripción oficial",
+    description:
+      "Gestionamos registros, fichas y validaciones directamente con la organización del torneo.",
   },
   {
-    icon: <Hotel size={32} />,
-    title: "Gestión de Hoteles",
-    description: "Buscamos, negociamos y reservamos el alojamiento ideal para tu equipo."
+    icon: Hotel,
+    title: "Hoteles y alojamiento",
+    description:
+      "Selección, negociación y reserva de hoteles optimizados para equipos deportivos.",
   },
   {
-    icon: <Bus size={32} />,
-    title: "Transporte y Logística",
-    description: "Coordinamos autobuses y traslados internos con puntualidad garantizada."
+    icon: Bus,
+    title: "Transporte y logística",
+    description:
+      "Autobuses, transfers y coordinación completa de movimientos durante el torneo.",
   },
   {
-    icon: <FileText size={32} />,
-    title: "Control Documental",
-    description: "Recopilación y validación de DNI, pasaportes y autorizaciones de menores."
+    icon: FileText,
+    title: "Control documental",
+    description:
+      "Recopilación y validación de DNI, pasaportes y autorizaciones de menores.",
   },
   {
-    icon: <CreditCard size={32} />,
-    title: "Pagos Unificados",
-    description: "Centralizamos todos los pagos. Una sola factura para el club."
+    icon: CreditCard,
+    title: "Pagos centralizados",
+    description:
+      "Unificamos todos los pagos. Un solo interlocutor. Cero errores administrativos.",
   },
   {
-    icon: <MessageCircle size={32} />,
-    title: "Comunicación Directa",
-    description: "Somos el nexo entre tu club y la organización del torneo."
-  }
+    icon: MessageCircle,
+    title: "Comunicación continua",
+    description:
+      "Somos el punto único de contacto entre tu club y la organización del evento.",
+  },
 ];
 
 const Services: React.FC = () => {
   return (
-    <section id="services" className="py-24 bg-slate-50 relative">
-      <div className="container mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">
-            Todo lo que necesitas, <span className="text-blue-600">resuelto.</span>
+    <section
+      id="servicios"
+      className="relative py-32 bg-brand-deep text-white overflow-hidden"
+    >
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-carbon opacity-20 mix-blend-overlay" />
+      </div>
+
+      <div className="container mx-auto px-6 relative z-10">
+        {/* Header */}
+        <div className="max-w-3xl mb-20">
+          <span className="text-brand-neon text-xs font-bold uppercase tracking-widest">
+            Qué hacemos
+          </span>
+          <h2 className="text-4xl md:text-5xl font-black italic mt-3 mb-6">
+            Todo lo que un torneo necesita.
+            <br />
+            <span className="text-brand-neon">Sin fricción.</span>
           </h2>
-          <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-            Cubrimos el ciclo completo de logística deportiva para que tu staff técnico solo se preocupe del balón.
+          <p className="text-slate-300 text-lg">
+            Cubrimos el ciclo completo de gestión logística y administrativa para
+            equipos y clubes. Tú compites. Nosotros nos ocupamos del resto.
           </p>
         </div>
 
+        {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {services.map((service, index) => (
-            <div 
-              key={index}
-              className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300 border border-slate-100 group"
-            >
-              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                {service.icon}
+          {services.map((service) => {
+            const Icon = service.icon;
+            return (
+              <div
+                key={service.title}
+                className="group bg-brand-surface/60 backdrop-blur border border-white/10 rounded-2xl p-8 hover:border-brand-neon/40 transition-all"
+              >
+                <div className="w-12 h-12 rounded-xl bg-brand-neon/20 text-brand-neon flex items-center justify-center mb-6 group-hover:bg-brand-neon group-hover:text-brand-deep transition">
+                  <Icon size={24} />
+                </div>
+
+                <h3 className="text-xl font-bold mb-3">
+                  {service.title}
+                </h3>
+
+                <p className="text-slate-400 leading-relaxed">
+                  {service.description}
+                </p>
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{service.title}</h3>
-              <p className="text-slate-600 leading-relaxed">
-                {service.description}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

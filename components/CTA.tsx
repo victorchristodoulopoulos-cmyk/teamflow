@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 const CTA: React.FC = () => {
   return (
-    <section id="contact" className="py-24 bg-brand-dark relative overflow-hidden">
+    <section id="contacto" className="py-24 bg-brand-dark relative overflow-hidden">
         {/* Decorative Grid */}
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>

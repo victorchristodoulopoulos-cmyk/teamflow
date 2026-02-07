@@ -1,13 +1,23 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-} from "react";
+// src/context/Store.tsx
+import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
-// ===========================
-// 📌 TIPOS
-// ===========================
+// ===== Types =====
+export type PlayerStatus = "Pendiente" | "Validado";
+
+export interface Tournament {
+  id: string;
+  name: string;
+  city: string;
+  dates: string;
+  status: "Planificado" | "En curso" | "Finalizado" | "Urgente";
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  tournamentId?: string | null;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -15,74 +25,86 @@ export interface Player {
   teamId: string;
   dni: string;
   birthDate: string;
-  status: "Pendiente" | "Validado";
+  status: PlayerStatus;
 }
 
-export interface Team {
+export interface Hotel {
   id: string;
   name: string;
+  city?: string;
+}
+
+export interface Transport {
+  id: string;
+  type: string;
+  info?: string;
+}
+
+export interface Payment {
+  id: string;
+  teamId?: string;
+  amount: number;
+  status: "Pendiente" | "Pagado" | "Vencido";
 }
 
 export interface StoreContextType {
-  players: Player[];
+  tournaments: Tournament[];
   teams: Team[];
+  players: Player[];
+  hotels: Hotel[];
+  transport: Transport[];
+  payments: Payment[];
 
-  addPlayer: (p: Player) => void;
+  addPlayer: (p: Omit<Player, "id">) => void;
   updatePlayer: (p: Player) => void;
   deletePlayer: (id: string) => void;
+
+  // (si luego quieres CRUD de teams/tournaments, lo añadimos)
 }
 
-// ===========================
-// 📌 CONTEXTO
-// ===========================
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// ===========================
-// 📌 PROVIDER
-// ===========================
 export const StoreProvider = ({ children }: { children: ReactNode }) => {
+  // ⚠️ De momento estado local para que el dashboard funcione sin DB
+  const [tournaments] = useState<Tournament[]>([]);
+  const [teams] = useState<Team[]>([]);
+  const [hotels] = useState<Hotel[]>([]);
+  const [transport] = useState<Transport[]>([]);
+  const [payments] = useState<Payment[]>([]);
+
   const [players, setPlayers] = useState<Player[]>([]);
-  const [teams] = useState<Team[]>([
-    // Puedes borrar estos si usas Supabase
-    { id: "team1", name: "Equipo 1" },
-    { id: "team2", name: "Equipo 2" },
-  ]);
 
-  // ➕ Crear
-  const addPlayer = (p: Player) => {
-    setPlayers((prev) => [...prev, { ...p, id: crypto.randomUUID() }]);
+  const addPlayer = (p: Omit<Player, "id">) => {
+    const id = crypto.randomUUID();
+    setPlayers((prev) => [...prev, { ...p, id }]);
   };
 
-  // ✏️ Editar
   const updatePlayer = (updated: Player) => {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === updated.id ? updated : p))
-    );
+    setPlayers((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   };
 
-  // 🗑️ Eliminar
   const deletePlayer = (id: string) => {
     setPlayers((prev) => prev.filter((p) => p.id !== id));
   };
 
-  return (
-    <StoreContext.Provider
-      value={{
-        players,
-        teams,
-        addPlayer,
-        updatePlayer,
-        deletePlayer,
-      }}
-    >
-      {children}
-    </StoreContext.Provider>
+  const value = useMemo<StoreContextType>(
+    () => ({
+      tournaments,
+      teams,
+      players,
+      hotels,
+      transport,
+      payments,
+      addPlayer,
+      updatePlayer,
+      deletePlayer,
+    }),
+    [tournaments, teams, players, hotels, transport, payments]
   );
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 };
 
-// ===========================
-// 📌 HOOK useStore
-// ===========================
 export const useStore = () => {
   const ctx = useContext(StoreContext);
   if (!ctx) throw new Error("useStore must be used inside StoreProvider");

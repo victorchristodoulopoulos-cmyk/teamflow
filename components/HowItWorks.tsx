@@ -3,7 +3,7 @@ import { Send, Settings, Trophy } from 'lucide-react';
 
 const HowItWorks: React.FC = () => {
   return (
-    <section id="how-it-works" className="py-24 bg-white">
+    <section id="como-funciona" className="py-24 bg-white">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <span className="text-blue-600 font-bold tracking-wider uppercase text-sm mb-2 block">El Proceso</span>

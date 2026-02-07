@@ -49,7 +49,7 @@ const Documentation: React.FC = () => {
 
   const getTeamName = (id: string) => teams.find(t => t.id === id)?.name || 'Unknown';
 
-  const PlayerCard = ({ player }: { player: Player }) => (
+  const PlayerCard: React.FC<{ player: Player }> = ({ player }) => (
     <div className="bg-brand-deep p-4 rounded-xl border border-white/5 hover:border-brand-neon/30 transition-all group shadow-sm">
         <div className="flex justify-between items-start mb-2">
             <span className="text-xs font-bold text-brand-neon bg-brand-neon/10 px-2 py-0.5 rounded uppercase">{getTeamName(player.teamId)}</span>
