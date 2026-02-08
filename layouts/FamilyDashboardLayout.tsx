@@ -1,5 +1,6 @@
 import React from "react";
 import PortalLayout from "./PortalLayout";
+import { supabase } from "../supabase/supabaseClient";
 
 const links = [
   { to: "/family-dashboard", label: "Panel", icon: "▦", end: true },
@@ -27,6 +28,9 @@ export default function FamilyDashboardLayout() {
       subtitle="Portal familiar"
       links={links}
       getSessionEmail={getEmailFromLocalSession}
+      onLogout={async () => {
+        await supabase.auth.signOut();
+      }}
     />
   );
 }

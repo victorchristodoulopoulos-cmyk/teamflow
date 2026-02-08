@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../supabase/supabaseClient";
 import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { useNavigate } from "react-router-dom";
 
 type Player = {
   id: string;
@@ -12,8 +13,10 @@ type Player = {
 };
 
 export default function FamilyDashboardHome() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [player, setPlayer] = useState<Player | null>(null);
+  const [teamName, setTeamName] = useState<string>("");
 
   const fullName = useMemo(() => {
     if (!player) return "—";
@@ -23,42 +26,55 @@ export default function FamilyDashboardHome() {
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-
+      // Get current logged-in user (family)
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth?.user) return setLoading(false);
-
+      if (!auth?.user) {
+        setLoading(false);
+        return;
+      }
+      // Fetch profile to get player_id
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("player_id")
+        .select("player_id, team_id")
         .eq("id", auth.user.id)
         .single();
-
       if (pErr || !profile?.player_id) {
         console.error("Profile sin player_id", pErr);
-        return setLoading(false);
+        setLoading(false);
+        return;
       }
-
-      const { data: player, error: jErr } = await supabase
+      // Fetch player details
+      const { data: playerData, error: jErr } = await supabase
         .from("jugadores")
         .select("id, name, surname, dni, team_id")
         .eq("id", profile.player_id)
         .single();
-
-      if (jErr) {
-        console.error("Error jugador", jErr);
-        return setLoading(false);
+      if (jErr || !playerData) {
+        console.error("Error cargando jugador", jErr);
+        setLoading(false);
+        return;
       }
-
-      setPlayer(player);
+      setPlayer(playerData);
+      // Fetch team name if available (team_id might be null if not assigned)
+      if (playerData.team_id) {
+        const { data: team, error: tErr } = await supabase
+          .from("equipos")
+          .select("name, nombre")
+          .eq("id", playerData.team_id)
+          .single();
+        if (!tErr && team) {
+          setTeamName(team.name ?? team.nombre ?? "");
+        }
+      }
       setLoading(false);
     };
-
     run();
   }, []);
 
   if (loading) {
     return (
       <div className="space-y-4">
+        {/* Loading skeletons */}
         <div className="h-28 rounded-2xl border border-[rgba(var(--border))] bg-white/5 animate-pulse" />
         <div className="grid lg:grid-cols-3 gap-4">
           <div className="h-24 rounded-2xl border border-[rgba(var(--border))] bg-white/5 animate-pulse" />
@@ -71,14 +87,13 @@ export default function FamilyDashboardHome() {
 
   return (
     <div className="space-y-6">
-      {/* HERO */}
+      {/* HERO / Welcome Card */}
       <Card className="overflow-hidden">
         <div className="p-6 lg:p-8 relative">
           <div className="absolute inset-0 opacity-60 pointer-events-none">
             <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-[rgba(var(--brand),0.12)] blur-3xl" />
             <div className="absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-[rgba(80,160,255,0.10)] blur-3xl" />
           </div>
-
           <div className="relative flex items-center gap-4">
             <div className="h-12 w-12 rounded-2xl bg-white/5 border border-[rgba(var(--border))] flex items-center justify-center text-xl">
               👋
@@ -98,15 +113,18 @@ export default function FamilyDashboardHome() {
         </div>
       </Card>
 
-      {/* GRID */}
+      {/* GRID CARDS */}
       <div className="grid lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader title="Jugador" subtitle="Datos principales" />
           <CardContent>
             <div className="text-lg font-extrabold">{fullName}</div>
-            <div className="mt-1 text-sm text-[rgb(var(--muted))]">DNI: {player?.dni ?? "—"}</div>
+            <div className="mt-1 text-sm text-[rgb(var(--muted))]">
+              DNI: {player?.dni ?? "—"}
+            </div>
             <div className="mt-4">
-              <Button variant="secondary" className="w-full" onClick={() => window.location.assign("/family-dashboard/perfil")}>
+              <Button variant="secondary" className="w-full"
+                      onClick={() => navigate("/family-dashboard/perfil")}>
                 Ver perfil
               </Button>
             </div>
@@ -116,7 +134,9 @@ export default function FamilyDashboardHome() {
         <Card>
           <CardHeader title="Equipo" subtitle="Información del torneo" />
           <CardContent>
-            <div className="text-lg font-extrabold">Pirineos FC</div>
+            <div className="text-lg font-extrabold">
+              {teamName || "Equipo no asignado"}
+            </div>
             <div className="mt-1 text-sm text-[rgb(var(--muted))] truncate">
               ID: {player?.team_id ?? "—"}
             </div>
@@ -129,13 +149,15 @@ export default function FamilyDashboardHome() {
         </Card>
 
         <Card className="shadow-glow">
-          <CardHeader title="Acciones rápidas" subtitle="Todo centralizado" />
+          <CardHeader title="Acciones rápidas" subtitle="Accesos directos" />
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              <Button className="w-full" onClick={() => window.location.assign("/family-dashboard/pagos")}>
+              <Button className="w-full"
+                      onClick={() => navigate("/family-dashboard/pagos")}>
                 Pagos
               </Button>
-              <Button variant="secondary" className="w-full" onClick={() => window.location.assign("/family-dashboard/documentos")}>
+              <Button variant="secondary" className="w-full"
+                      onClick={() => navigate("/family-dashboard/documentos")}>
                 Docs
               </Button>
             </div>

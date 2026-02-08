@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Tabs } from "../../components/ui/Tabs";
+import { useLocation } from "react-router-dom";
 
 function formatEUR(amount: number) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(amount);
@@ -18,11 +19,13 @@ function toneFromEstado(estado?: string | null) {
 }
 
 export default function FamilyPayments() {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"pendiente" | "pagado" | "todos">("pendiente");
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [justPaidId, setJustPaidId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -41,6 +44,26 @@ export default function FamilyPayments() {
     load();
   }, []);
 
+  // On component mount or navigation, check for Stripe return status
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get("status");
+    const paidPagoId = params.get("pago");
+    if (status === "success" && paidPagoId) {
+      // Mark that a payment was just completed
+      setJustPaidId(paidPagoId);
+      // Optionally, reload payments after a short delay to allow webhook to update DB
+      setLoading(true);
+      setTimeout(async () => {
+        try {
+          await load();
+        } finally {
+          setLoading(false);
+        }
+      }, 1500);
+    }
+  }, [location.search]);
+
   const stats = useMemo(() => {
     const pending = pagos.filter((p) => (p.estado ?? "").toLowerCase() === "pendiente").length;
     const paid = pagos.filter((p) => (p.estado ?? "").toLowerCase() === "pagado").length;
@@ -56,6 +79,7 @@ export default function FamilyPayments() {
     try {
       setPayingId(pagoId);
       await startCheckoutForPago(pagoId);
+      // The above function redirects the browser to Stripe, so code below won't run on success.
     } catch (e: any) {
       alert(e?.message ?? "No se pudo iniciar el pago");
       setPayingId(null);
@@ -96,6 +120,15 @@ export default function FamilyPayments() {
         </CardContent>
       </Card>
 
+      {/* If a payment was just completed, show a confirmation */}
+      {justPaidId && (
+        <Card className="border-green-500/50">
+          <CardContent className="p-5 text-sm text-green-300">
+            ✅ Pago realizado correctamente. El estado se ha actualizado.
+          </CardContent>
+        </Card>
+      )}
+
       {error && (
         <Card className="border-[rgba(var(--danger),0.35)]">
           <CardContent className="p-5 text-sm text-[rgb(var(--danger))]">
@@ -104,7 +137,7 @@ export default function FamilyPayments() {
         </Card>
       )}
 
-      {/* Empty / Loading / Content */}
+      {/* Content */}
       {loading ? (
         <div className="grid gap-4">
           <div className="h-28 rounded-2xl border border-[rgba(var(--border))] bg-white/5 animate-pulse" />
@@ -116,7 +149,11 @@ export default function FamilyPayments() {
           <CardContent className="p-10 text-center">
             <div className="text-lg font-extrabold">No hay pagos en este filtro</div>
             <div className="mt-2 text-sm text-[rgb(var(--muted))]">
-              Si crees que falta alguno, contacta con el coordinador.
+              {filter === "pagado"
+                ? "Ningún pago completado todavía."
+                : filter === "pendiente"
+                ? "¡Genial! No tienes pagos pendientes."
+                : "No existen pagos registrados."}
             </div>
           </CardContent>
         </Card>
@@ -141,7 +178,6 @@ export default function FamilyPayments() {
                       </div>
                       <Badge tone={toneFromEstado(p.estado)}>{p.estado ?? "—"}</Badge>
                     </div>
-
                     <div className="flex items-end justify-between">
                       <div>
                         <div className="text-xs text-[rgb(var(--muted))]">Importe</div>
@@ -149,7 +185,6 @@ export default function FamilyPayments() {
                           {formatEUR(Number(p.importe))}
                         </div>
                       </div>
-
                       <Button
                         className="min-w-[140px]"
                         variant={canPay ? "primary" : "secondary"}
@@ -159,7 +194,6 @@ export default function FamilyPayments() {
                         {payingId === p.id ? "Redirigiendo…" : canPay ? "Pagar ahora" : "No disponible"}
                       </Button>
                     </div>
-
                     {p.fecha_pago ? (
                       <div className="text-xs text-[rgb(var(--muted))]">Pagado el {p.fecha_pago}</div>
                     ) : null}
@@ -169,7 +203,7 @@ export default function FamilyPayments() {
             })}
           </div>
 
-          {/* Desktop: pro table */}
+          {/* Desktop: table */}
           <Card className="hidden lg:block">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -194,9 +228,7 @@ export default function FamilyPayments() {
                         >
                           <td className="px-6 py-5">
                             <div className="font-extrabold">{p.concepto ?? "Pago"}</div>
-                            <div className="text-xs text-[rgb(var(--muted))]">
-                              ID: {p.id}
-                            </div>
+                            <div className="text-xs text-[rgb(var(--muted))]">ID: {p.id}</div>
                           </td>
                           <td className="px-6 py-5 font-black">
                             {formatEUR(Number(p.importe))}
@@ -224,7 +256,6 @@ export default function FamilyPayments() {
               </div>
             </CardContent>
           </Card>
-
           <div className="text-xs text-[rgb(var(--muted))]">
             Pagos procesados de forma segura con Stripe.
           </div>
