@@ -12,6 +12,22 @@ interface SessionData {
   playerId: string | null;
 }
 
+type ProfileRow = {
+  id: string;
+  role: Role;
+  email: string | null;
+  team_id: string | null;
+  player_id: string | null;
+};
+
+function friendlySupabaseError(e: any) {
+  const msg =
+    e?.message ||
+    e?.error_description ||
+    (typeof e === "string" ? e : JSON.stringify(e));
+  return msg ?? "Unknown error";
+}
+
 const LoginFamily: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("family@test.com");
@@ -23,31 +39,103 @@ const LoginFamily: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    // 1) Login Supabase Auth (profesional)
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // 1) Login Supabase Auth
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (authError || !authData.user) {
-      setError("Credenciales incorrectas.");
+      setError(`Credenciales incorrectas. (${friendlySupabaseError(authError)})`);
       setLoading(false);
       return;
     }
 
-    // 2) Leer profile y verificar role = family
-    const { data: profile, error: profileError } = await supabase
+    const userId = authData.user.id;
+    const userEmail = authData.user.email ?? email;
+
+    // 2) Try to read profile by ID (correct way)
+    let profile: ProfileRow | null = null;
+
+    const byId = await supabase
       .from("profiles")
       .select("id, role, email, team_id, player_id")
-      .eq("id", authData.user.id)
-      .single();
+      .eq("id", userId)
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      setError("No existe perfil para este usuario (profiles).");
+    if (byId.error) {
+      // IMPORTANT: this is often RLS / permissions
+      setError(
+        `No puedo leer profiles (por ID). Posible RLS/permisos. Error: ${friendlySupabaseError(
+          byId.error
+        )}`
+      );
       setLoading(false);
       return;
     }
 
+    profile = (byId.data as ProfileRow | null) ?? null;
+
+    // 3) If not found, fallback by email (helps diagnose mismatch)
+    if (!profile) {
+      const byEmail = await supabase
+        .from("profiles")
+        .select("id, role, email, team_id, player_id")
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      if (byEmail.error) {
+        setError(
+          `No puedo leer profiles (por email). Posible RLS/permisos. Error: ${friendlySupabaseError(
+            byEmail.error
+          )}`
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (byEmail.data) {
+        // Found a profile but with different ID => data mismatch in DB
+        setError(
+          `Tu perfil existe pero su ID NO coincide con auth.users.id.\n\n` +
+            `auth id: ${userId}\n` +
+            `profile id: ${(byEmail.data as ProfileRow).id}\n\n` +
+            `Solución: hay que arreglar el profile en Supabase (te paso SQL abajo).`
+        );
+        setLoading(false);
+        return;
+      }
+    }
+
+    // 4) If still not found => create profile automatically with correct auth id
+    if (!profile) {
+      const insertRes = await supabase
+        .from("profiles")
+        .insert({
+          id: userId,
+          role: "family",
+          email: userEmail,
+          team_id: null,
+          player_id: null,
+        })
+        .select("id, role, email, team_id, player_id")
+        .single();
+
+      if (insertRes.error || !insertRes.data) {
+        setError(
+          `No existe perfil y no puedo crearlo (INSERT). Posible RLS/permisos. Error: ${friendlySupabaseError(
+            insertRes.error
+          )}`
+        );
+        setLoading(false);
+        return;
+      }
+
+      profile = insertRes.data as ProfileRow;
+    }
+
+    // 5) Enforce role
     if (profile.role !== "family") {
       setError("Tu usuario no tiene acceso al portal FAMILY.");
       setLoading(false);
@@ -55,7 +143,7 @@ const LoginFamily: React.FC = () => {
     }
 
     const session: SessionData = {
-      email: profile.email ?? email,
+      email: profile.email ?? userEmail,
       role: "family",
       teamId: profile.team_id ?? null,
       playerId: profile.player_id ?? null,
@@ -88,6 +176,7 @@ const LoginFamily: React.FC = () => {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
             />
 
             <input
@@ -96,10 +185,15 @@ const LoginFamily: React.FC = () => {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+          {error && (
+            <pre className="whitespace-pre-wrap text-red-400 text-xs mt-4">
+              {error}
+            </pre>
+          )}
 
           <button
             onClick={handleLogin}

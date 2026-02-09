@@ -1,24 +1,35 @@
 import { supabase } from "./supabaseClient";
 
-export interface Player {
+export type Player = {
   id: string;
   name: string;
-  team_id: string;
-  birth_date: string | null;
-  status: string | null;
+  surname: string | null;
   dni: string | null;
-}
+  status: string | null;
+};
 
-export async function getPlayersByTeam(teamId: string): Promise<Player[]> {
+export async function getTeamPlayers(): Promise<Player[]> {
   const { data, error } = await supabase
-    .from("jugadores")
-    .select("*")
-    .eq("team_id", teamId);
+    .from("torneo_jugadores")
+    .select(`
+      id,
+      jugadores (
+        id,
+        name,
+        surname,
+        dni
+      ),
+      status
+    `)
+    .order("created_at", { ascending: true });
 
-  if (error) {
-    console.error("❌ Error fetching players:", error);
-    throw error;
-  }
+  if (error) throw error;
 
-  return data ?? [];
+  return (data ?? []).map((row: any) => ({
+    id: row.jugadores.id,
+    name: row.jugadores.name,
+    surname: row.jugadores.surname,
+    dni: row.jugadores.dni,
+    status: row.status,
+  }));
 }

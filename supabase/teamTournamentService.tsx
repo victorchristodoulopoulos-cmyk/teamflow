@@ -1,41 +1,33 @@
 import { supabase } from "./supabaseClient";
 
-export interface Tournament {
-  uuid: string;
+export type Tournament = {
+  id: string;
   nombre: string;
-  ciudad: string;
-  fecha: string;
-}
+  ciudad: string | null;
+  fecha: string | null;
+};
 
-export async function getTournamentByTeam(
-  teamId: string
-): Promise<Tournament | null> {
+export async function getTournamentsForTeam(): Promise<Tournament[]> {
   const { data, error } = await supabase
     .from("equipos")
-    .select(
-      `
+    .select(`
       torneos (
-        uuid,
+        id,
         nombre,
         ciudad,
         fecha
       )
-    `
-    )
-    .eq("id", teamId)
-    .single();
+    `);
 
-  if (error) {
-    console.error("Error loading tournament:", error);
-    return null;
-  }
+  if (error) throw error;
 
-  // 🔥 SUPABASE DEVUELVE ARRAY
-  const tournaments = data?.torneos;
+  const map = new Map<string, Tournament>();
 
-  if (!tournaments || tournaments.length === 0) {
-    return null;
-  }
+  (data ?? []).forEach((row: any) => {
+    if (row.torneos) {
+      map.set(row.torneos.id, row.torneos);
+    }
+  });
 
-  return tournaments[0];
+  return Array.from(map.values());
 }

@@ -10,15 +10,24 @@ import CTA from "../components/CTA";
 const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-accent selection:text-brand-dark">
-      <main className="flex-grow">
-        <Hero />
+      <Hero />
+
+      <section id="services">
         <Services />
+      </section>
+
+      <section id="how">
         <HowItWorks />
-        <WhyUs />
+      </section>
+
+      <WhyUs />
+
+      <section id="pricing">
         <Pricing />
-        <Testimonials />
-        <CTA />
-      </main>
+      </section>
+
+      <Testimonials />
+      <CTA />
     </div>
   );
 };

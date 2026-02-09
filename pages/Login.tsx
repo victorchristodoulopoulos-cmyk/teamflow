@@ -12,8 +12,7 @@ export interface AppSession {
   email: string;
   userId: string;
   role: "team" | "admin" | "family";
-  teamId: string | null;
-  playerId: string | null;
+  clubId: string | null;
 }
 
 const Login: React.FC<Props> = ({ mode }) => {
@@ -27,7 +26,6 @@ const Login: React.FC<Props> = ({ mode }) => {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,10 +36,12 @@ const Login: React.FC<Props> = ({ mode }) => {
       navigate("/dashboard", { replace: true });
       return;
     }
+
     if (session.role === "team") {
       navigate("/team-dashboard", { replace: true });
       return;
     }
+
     navigate("/family-dashboard", { replace: true });
   };
 
@@ -49,11 +49,12 @@ const Login: React.FC<Props> = ({ mode }) => {
     setLoading(true);
     setError(null);
 
-    // 1) LOGIN REAL con Supabase Auth
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // 1️⃣ Auth
+    const { data, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
     if (authError || !data.user) {
       setError("Credenciales incorrectas.");
@@ -63,42 +64,35 @@ const Login: React.FC<Props> = ({ mode }) => {
 
     const userId = data.user.id;
 
-    // 2) Leer profiles: role + team_id + player_id
+    // 2️⃣ Leer profile (SOLO columnas reales)
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role, team_id, player_id, email")
+      .select("id, role, email, club_id")
       .eq("id", userId)
-      .maybeSingle();
+      .single();
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error(profileError);
-      setError("Error leyendo perfil (profiles).");
+      setError("Error leyendo perfil.");
       setLoading(false);
       return;
     }
 
-    if (!profile?.role) {
-      setError("Este usuario no tiene role en profiles.");
-      setLoading(false);
-      return;
-    }
-
-    // 3) Validación por modo:
-    // - Si entras por /login/team y eres family => bloquea
-    // - Admin puede entrar desde cualquier modo (opcional, pero útil)
+    // 3️⃣ Validación por modo
     if (profile.role !== "admin" && profile.role !== mode) {
-      setError(`Este usuario es '${profile.role}' y estás intentando entrar por '${mode}'.`);
+      setError(
+        `Este usuario es '${profile.role}' y estás entrando como '${mode}'.`
+      );
       setLoading(false);
       return;
     }
 
-    // 4) Construir sesión
+    // 4️⃣ Construir sesión (LIMPIA)
     const session: AppSession = {
       email: profile.email ?? email,
       userId,
       role: profile.role,
-      teamId: profile.team_id ?? null,
-      playerId: profile.player_id ?? null,
+      clubId: profile.club_id ?? null,
     };
 
     goByRole(session);
@@ -108,23 +102,23 @@ const Login: React.FC<Props> = ({ mode }) => {
     <div className="flex items-center justify-center min-h-screen bg-brand-deep">
       <div className="bg-brand-surface p-8 rounded-2xl w-full max-w-md border border-white/10">
         <h1 className="text-2xl font-bold mb-2 text-white">{title}</h1>
-        <p className="text-sm text-slate-400 mb-6">Accede con tu cuenta (Supabase Auth).</p>
+        <p className="text-sm text-slate-400 mb-6">
+          Accede con tu cuenta (Supabase Auth).
+        </p>
 
         <input
-          className="w-full mb-3 p-3 rounded bg-black/30 text-white border border-white/10 outline-none focus:border-brand-neon/60"
+          className="w-full mb-3 p-3 rounded bg-black/30 text-white border border-white/10"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
         />
 
         <input
-          className="w-full mb-4 p-3 rounded bg-black/30 text-white border border-white/10 outline-none focus:border-brand-neon/60"
+          className="w-full mb-4 p-3 rounded bg-black/30 text-white border border-white/10"
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
         />
 
         {error && <p className="text-red-400 mb-3">{error}</p>}
@@ -132,7 +126,7 @@ const Login: React.FC<Props> = ({ mode }) => {
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-brand-neon text-brand-deep font-bold py-3 rounded hover:brightness-110 transition disabled:opacity-60"
+          className="w-full bg-brand-neon text-brand-deep font-bold py-3 rounded disabled:opacity-60"
         >
           {loading ? "Entrando..." : "Entrar"}
         </button>

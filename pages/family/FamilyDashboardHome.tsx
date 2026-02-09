@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useNavigate } from "react-router-dom";
 
+
+
 type Player = {
   id: string;
   name: string;
