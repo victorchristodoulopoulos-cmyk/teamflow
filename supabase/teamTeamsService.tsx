@@ -12,34 +12,46 @@ export type AssignedTeam = {
 };
 
 export async function getAssignedTeams(): Promise<AssignedTeam[]> {
-  const { data: userRes, error: userErr } = await supabase.auth.getUser();
-  if (userErr) console.error("auth.getUser error:", userErr);
-
-  const user = userRes?.user;
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr) {
+    console.log("[DBG3] getUser error:", authErr);
+    return [];
+  }
+  const user = authData.user;
   if (!user) return [];
 
-  const profileId = user.id;
-
-  // 1) Traer asignaciones (esto suele devolver vacío si RLS está mal)
+  // A) team_users
   const { data: tuRows, error: tuErr } = await supabase
     .from("team_users")
     .select("team_id")
-    .eq("profile_id", profileId);
+    .eq("profile_id", user.id);
 
-  if (tuErr) {
-    console.error("team_users select error:", tuErr);
-    throw tuErr;
-  }
+  console.log("[DBG3] team_users error:", tuErr);
+  console.log("[DBG3] team_users rows:", tuRows);
 
   const teamIds = (tuRows ?? []).map((r: any) => r.team_id).filter(Boolean);
+  console.log("[DBG3] teamIds:", teamIds);
+
   if (!teamIds.length) return [];
 
-  // 2) Traer equipos (si aquí sale vacío, RLS de equipos está mal)
-  const { data: equiposRows, error: eqErr } = await supabase
+  const testId = teamIds[0];
+
+const { data: e1, error: e1Err } = await supabase
+  .from("equipos")
+  .select("id, nombre, club_id, torneo_id")
+  .eq("id", testId);
+
+console.log("[DBG4] equipos eq(id) error:", e1Err);
+console.log("[DBG4] equipos eq(id) data:", e1);
+
+
+  // B) equipos + torneo
+  const { data: equipos, error: eqErr } = await supabase
     .from("equipos")
     .select(`
       id,
       nombre,
+      torneo_id,
       torneos:torneo_id (
         id,
         nombre,
@@ -49,12 +61,12 @@ export async function getAssignedTeams(): Promise<AssignedTeam[]> {
     `)
     .in("id", teamIds);
 
-  if (eqErr) {
-    console.error("equipos select error:", eqErr);
-    throw eqErr;
-  }
+  console.log("[DBG3] equipos error:", eqErr);
+  console.log("[DBG3] equipos rows:", equipos);
 
-  return (equiposRows ?? []).map((e: any) => ({
+  if (eqErr) return [];
+
+  return (equipos ?? []).map((e: any) => ({
     id: e.id,
     nombre: e.nombre,
     torneo: e.torneos ?? null,

@@ -89,15 +89,15 @@ export default function App() {
 
         {/* TEAM */}
         <Route
-  path="/team-dashboard"
-  element={
-    <TeamRoute>
-      <TeamProvider>
-        <TeamDashboardLayout />
-      </TeamProvider>
-    </TeamRoute>
-  }
->
+          path="/team-dashboard"
+          element={
+            <TeamRoute>
+              <TeamProvider>
+                <TeamDashboardLayout />
+              </TeamProvider>
+            </TeamRoute>
+          }
+        >
 
           <Route index element={<TeamDashboardHome />} />
           <Route path="jugadores" element={<TeamPlayers />} />

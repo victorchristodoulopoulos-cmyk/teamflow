@@ -8,6 +8,8 @@ const links = [
 ];
 
 function getEmailFromLocalSession() {
+  // Si ya guardas email en localStorage "session" OK.
+  // Si no, quedará vacío y lo verás en el header como "—".
   const raw = localStorage.getItem("session");
   if (!raw) return "";
   try {
