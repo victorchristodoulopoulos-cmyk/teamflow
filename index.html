@@ -4,11 +4,14 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TeamFlow - High Performance Sports Management</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>TeamFlow - High Performance</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -16,97 +19,48 @@
           extend: {
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
-              display: ['Sora', 'sans-serif'],
+              display: ['Sora', 'sans-serif'], /* Tu fuente moderna */
             },
             colors: {
+              // PALETA ORIGINAL RESTAURADA
               brand: {
-                deep: '#0D1B2A',      // Main Background (Deep Void)
-                surface: '#162032',   // Card / Panel Background
-                surfaceHighlight: '#1F2C45', // Hover states
-                neon: '#C9FF2F',      // Primary Accent (Hyper-Lime)
-                neonHover: '#B0E61A', // Accent Hover
-                platinum: '#E0E1DD',  // Primary Text
-                dim: '#778DA9',       // Secondary Text
+                deep: '#0D1B2A',      /* Fondo Azul Profundo */
+                surface: '#162032',   /* Fondo de Tarjetas */
+                neon: '#C9FF2F',      /* El Lima Neón que te gusta */
+                blue: '#38bdf8',      /* Azul cian complementario */
+                platinum: '#E0E1DD',  /* Texto blanco suave */
+                muted: '#778DA9',     /* Texto gris azulado */
               }
-            },
-            boxShadow: {
-              'neon': '0 0 20px rgba(201, 255, 47, 0.25)',
-              'neon-strong': '0 0 30px rgba(201, 255, 47, 0.4)',
-              'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
             },
             backgroundImage: {
               'carbon': "url('https://www.transparenttextures.com/patterns/carbon-fibre.png')",
-              'noise': "url('https://grainy-gradients.vercel.app/noise.svg')",
-            },
-            animation: {
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'float': 'float 6s ease-in-out infinite',
-              'slide-up': 'slideUp 0.5s ease-out forwards',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
-              },
-              slideUp: {
-                '0%': { opacity: 0, transform: 'translateY(20px)' },
-                '100%': { opacity: 1, transform: 'translateY(0)' },
-              }
             }
           }
         }
       }
     </script>
-    <style>
-      html { scroll-behavior: smooth; }
-      body { background-color: #0D1B2A; color: #E0E1DD; -webkit-font-smoothing: antialiased; }
-      
-      .bg-carbon {
-        background-color: #0D1B2A;
-        background-image: linear-gradient(rgba(13, 27, 42, 0.95), rgba(13, 27, 42, 0.95)), url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
-      }
 
-      ::selection { background-color: #C9FF2F; color: #0D1B2A; }
-      
-      /* Sports Tech Scrollbar */
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #0D1B2A; border-left: 1px solid #1F2C45; }
-      ::-webkit-scrollbar-thumb { background: #25324B; border-radius: 0px; border: 1px solid #0D1B2A; }
-      ::-webkit-scrollbar-thumb:hover { background: #C9FF2F; }
+    <link rel="stylesheet" href="/index.css">
 
-      /* Glass utilities */
-      .glass-panel {
-        background: rgba(22, 32, 50, 0.7);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react/": "https://esm.sh/react@18.2.0/",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.2.0,react-dom@18.2.0,react-router@6.22.3,@remix-run/router@1.15.3",
+        "react-router": "https://esm.sh/react-router@6.22.3?deps=react@18.2.0,@remix-run/router@1.15.3",
+        "@remix-run/router": "https://esm.sh/@remix-run/router@1.15.3",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0",
+        "clsx": "https://esm.sh/clsx@2.1.0",
+        "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.1"
       }
-      
-      .text-glow {
-        text-shadow: 0 0 10px rgba(201, 255, 47, 0.3);
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.2.0,react-dom@18.2.0,react-router@6.22.3,@remix-run/router@1.15.3",
-    "react-router": "https://esm.sh/react-router@6.22.3?deps=react@18.2.0,@remix-run/router@1.15.3",
-    "@remix-run/router": "https://esm.sh/@remix-run/router@1.15.3",
-    "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0",
-    "clsx": "https://esm.sh/clsx@2.1.0",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body class="bg-carbon text-brand-platinum antialiased overflow-x-hidden">
+    }
+    </script>
+  </head>
+  <body class="bg-[#0D1B2A] text-[#E0E1DD] antialiased overflow-x-hidden selection:bg-[#C9FF2F] selection:text-[#0D1B2A]">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

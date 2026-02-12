@@ -2,185 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-/* =========================================
-   TEAMFLOW PRO DESIGN SYSTEM (Glass)
-   - One system, 3 portal accents
-   - Calm • Elegant • Modern
-========================================= */
-
-/* ---------- Core tokens (dark default) ---------- */
-:root {
-  /* Surfaces */
-  --bg0: 8 12 20;
-  --bg1: 10 16 28;
-
-  --panel: 14 20 34;
-  --panel2: 16 24 40;
-
-  /* Typography */
-  --text: 235 240 255;
-  --muted: 160 170 190;
-
-  /* Borders + Shadows */
-  --border: 255 255 255; /* used as rgba(var(--border), x) */
-  --shadowStrong: 0 22px 80px rgba(0, 0, 0, 0.60);
-  --shadowSoft: 0 12px 34px rgba(0, 0, 0, 0.38);
-
-  /* Status */
-  --danger: 255 90 90;
-  --warning: 255 200 60;
-  --success: 90 220 140;
-
-  /* Accent default (will be overridden by portal) */
-  --accent: 180 255 60;  /* Team default DarkLime */
-  --accent2: 90 180 255; /* subtle blue */
-}
-
-/* ---------- Light mode (still premium) ---------- */
-:root[data-theme="light"] {
-  --bg0: 245 248 252;
-  --bg1: 233 240 248;
-
-  --panel: 255 255 255;
-  --panel2: 248 250 252;
-
-  --text: 16 22 35;
-  --muted: 85 95 120;
-
-  --shadowStrong: 0 22px 80px rgba(15, 23, 42, 0.14);
-  --shadowSoft: 0 12px 34px rgba(15, 23, 42, 0.10);
-}
-
-/* ---------- Portal accents ---------- */
-/* Team = DarkLime */
-[data-portal="team"] {
-  --accent: 180 255 60;
-  --accent2: 90 180 255;
-}
-
-/* Family = Purple */
-[data-portal="family"] {
-  --accent: 168 85 247; /* purple-500 vibe */
-  --accent2: 90 180 255;
-}
-
-/* Admin = Enterprise (cyan/steel) */
-[data-portal="admin"] {
-  --accent: 56 189 248; /* sky-400 */
-  --accent2: 148 163 184; /* slate-400 */
-}
-
-html, body { height: 100%; }
+/* FORZAMOS LOS ESTILOS GLOBALES */
 body {
-  color: rgb(var(--text));
-  background: rgb(var(--bg0));
+  background-color: #0D1B2A; /* Azul Profundo */
+  background-image: 
+    linear-gradient(rgba(13, 27, 42, 0.9), rgba(13, 27, 42, 0.9)),
+    url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+  font-family: 'Inter', sans-serif;
 }
 
-/* ---------- App background ---------- */
+/* Títulos con fuente Sora (Chula) */
+h1, h2, h3, h4, .font-display, .tf-title {
+  font-family: 'Sora', sans-serif;
+}
+
+/* =========================================
+   VARIABLES DE FUSIÓN
+   Hacen que los componentes nuevos usen colores viejos
+========================================= */
+:root {
+  /* COLORES BASE (Fondo azul oscuro siempre igual) */
+  --bg-deep: #0D1B2A;
+  
+  /* COLOR ACENTO POR DEFECTO (TEAM - LIMA) */
+  --accent: #C9FF2F; 
+}
+
+/* --- MAGIA AQUÍ: CAMBIO DE COLOR SEGÚN EL PORTAL --- */
+
+/* Si el portal es FAMILY -> MORADO */
+[data-portal="family"] {
+  --accent: #A855F7; /* Purple Neón */
+}
+
+/* Si el portal es CLUB -> AZUL CIELO */
+[data-portal="club"] {
+  --accent: #38BDF8; /* Sky Blue Neón */
+}
+
+/* Si el portal es TEAM (o admin) -> LIMA (Mantenemos el default o lo forzamos) */
+[data-portal="team"] {
+  --accent: #C9FF2F; /* Lime Neón */
+}
+
+/* --- FIN MAGIA --- */
+
+body {
+  background-color: var(--bg-deep);
+  /* ... resto de tus estilos ... */
+}
+
+/* Clase maestra para fondos */
 .bg-app {
-  background:
-    radial-gradient(900px 520px at 20% 10%, rgba(var(--accent), 0.14), transparent 58%),
-    radial-gradient(900px 520px at 75% 20%, rgba(var(--accent2), 0.12), transparent 58%),
-    radial-gradient(700px 480px at 45% 90%, rgba(255, 255, 255, 0.06), transparent 60%),
-    linear-gradient(180deg, rgb(var(--bg0)) 0%, rgb(var(--bg1)) 100%);
+  background-color: #0D1B2A;
+  min-height: 100vh;
 }
 
-/* Subtle premium noise (NOT dotted) */
-.bg-noise {
-  position: relative;
-}
-.bg-noise::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.06;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
+/* Estilo de Tarjetas (Glass Azul) */
+.tf-card, .glass-card {
+  background: rgba(22, 32, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
-/* ---------- Glass primitives ---------- */
-.tf-card {
-  position: relative;
-  border-radius: 24px;
-  border: 1px solid rgba(var(--border), 0.10);
-  background: rgba(var(--panel), 0.70);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  box-shadow: var(--shadowSoft);
-  overflow: hidden;
+/* Botones Lima */
+.btn-neon, .tf-btn-main {
+  background-color: #C9FF2F;
+  color: #0D1B2A;
+  font-weight: 700;
+  font-family: 'Sora', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 24px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-.tf-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    120deg,
-    rgba(255, 255, 255, 0.09),
-    rgba(255, 255, 255, 0.02),
-    rgba(255, 255, 255, 0.00)
-  );
-  opacity: 0.65;
+.btn-neon:hover {
+  box-shadow: 0 0 20px rgba(201, 255, 47, 0.4);
+  transform: translateY(-2px);
 }
-
-.tf-card-inner {
-  position: relative;
-  z-index: 1;
-  padding: 18px;
-}
-
-.tf-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.10), transparent);
-}
-
-.tf-muted { color: rgb(var(--muted)); }
-.tf-title { color: rgb(var(--text)); font-weight: 900; letter-spacing: -0.02em; }
-
-/* Pills */
-.tf-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 10px 12px;
-  border: 1px solid rgba(var(--border), 0.10);
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: transform .15s ease, background .15s ease;
-}
-.tf-pill:hover {
-  background: rgba(255, 255, 255, 0.10);
-  transform: translateY(-1px);
-}
-
-/* Glow (accent-driven) */
-.shadow-glow {
-  box-shadow:
-    0 18px 60px rgba(0,0,0,0.40),
-    0 0 0 1px rgba(var(--accent), 0.16),
-    0 0 42px rgba(var(--accent), 0.10);
-}
-
-/* Buttons helpers */
-.tf-focus {
-  outline: none;
-  box-shadow:
-    0 0 0 1px rgba(var(--accent), 0.20),
-    0 0 0 6px rgba(var(--accent), 0.14);
-}
-
-/* Safe areas (iOS) */
-.safe-top { padding-top: env(safe-area-inset-top); }
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-
-/* Scrollbar */
-*::-webkit-scrollbar { height: 10px; width: 10px; }
-*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
-*::-webkit-scrollbar-track { background: rgba(0,0,0,0.10); }
- 

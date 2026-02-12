@@ -8,16 +8,14 @@ type Role = "admin" | "team" | "family";
 interface SessionData {
   email: string;
   role: Role;
-  teamId: string | null;
-  playerId: string | null;
+
 }
 
 type ProfileRow = {
   id: string;
   role: Role;
   email: string | null;
-  team_id: string | null;
-  player_id: string | null;
+
 };
 
 function friendlySupabaseError(e: any) {
@@ -60,7 +58,7 @@ const LoginFamily: React.FC = () => {
 
     const byId = await supabase
       .from("profiles")
-      .select("id, role, email, team_id, player_id")
+      .select("id, role, email")
       .eq("id", userId)
       .maybeSingle();
 
@@ -81,7 +79,7 @@ const LoginFamily: React.FC = () => {
     if (!profile) {
       const byEmail = await supabase
         .from("profiles")
-        .select("id, role, email, team_id, player_id")
+        .select("id, role, email")
         .eq("email", userEmail)
         .maybeSingle();
 
@@ -116,10 +114,8 @@ const LoginFamily: React.FC = () => {
           id: userId,
           role: "family",
           email: userEmail,
-          team_id: null,
-          player_id: null,
         })
-        .select("id, role, email, team_id, player_id")
+        .select("id, role, email")
         .single();
 
       if (insertRes.error || !insertRes.data) {
@@ -145,8 +141,6 @@ const LoginFamily: React.FC = () => {
     const session: SessionData = {
       email: profile.email ?? userEmail,
       role: "family",
-      teamId: profile.team_id ?? null,
-      playerId: profile.player_id ?? null,
     };
 
     localStorage.setItem("session", JSON.stringify(session));

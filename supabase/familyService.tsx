@@ -1,78 +1,79 @@
 import { supabase } from "./supabaseClient";
 
-export interface FamilyPlayer {
+// Definimos los tipos de retorno aquí mismo para evitar dependencias circulares
+export interface EnrollmentData {
   id: string;
-  name: string;
-  surname: string | null;
-  dni: string | null;
-  status: string | null;
+  equipo_id: string;
+  equipos: {
+    id: string;
+    nombre: string;
+    clubs: {
+      id: string;
+      name: string; // Ojo: name o nombre según tu DB
+      logo_path: string | null;
+    } | null;
+  } | null;
+  torneos: {
+    id: string;
+    nombre: string;
+    ciudad: string | null;
+    fecha: string | null;
+    estado: string | null;
+  } | null;
 }
 
-export interface FamilyTeam {
+export interface PaymentData {
   id: string;
-  nombre: string;
+  importe: number;
+  estado: string;
+  concepto: string;
+  fecha_vencimiento: string | null;
 }
 
-export interface FamilyTournament {
-  uuid: string;
-  nombre: string;
-  ciudad: string;
-  fecha: string;
-}
-
-export interface FamilyDashboardData {
-  player: FamilyPlayer | null;
-  team: FamilyTeam | null;
-  tournament: FamilyTournament | null;
-}
-
-export async function getFamilyDashboardData(
-  playerId: string,
-  teamId: string
-): Promise<FamilyDashboardData> {
-  /** 1️⃣ JUGADOR */
-  const { data: player, error: playerErr } = await supabase
-    .from("jugadores")
-    .select("id, name, surname, dni, status")
-    .eq("id", playerId)
-    .single();
-
-  if (playerErr) {
-    console.error("❌ PLAYER ERROR", playerErr);
-  }
-
-  /** 2️⃣ EQUIPO + TORNEO (JOIN REAL) */
-  const { data: team, error: teamErr } = await supabase
-    .from("equipos")
+export async function getChildFullContext(playerId: string) {
+  // 1. Obtenemos inscripciones
+  const { data: enrollments, error: enrollError } = await supabase
+    .from("torneo_jugadores")
     .select(`
       id,
-      nombre,
+      equipo_id,
+      equipos (
+        id, 
+        nombre,
+        clubs (
+          id, 
+          name, 
+          logo_path
+        )
+      ),
       torneos (
-        uuid,
+        id,
         nombre,
         ciudad,
-        fecha
+        fecha,
+        estado
       )
     `)
-    .eq("id", teamId)
-    .single();
+    .eq("player_id", playerId);
 
-  if (teamErr) {
-    console.error("❌ TEAM ERROR", teamErr);
+  if (enrollError) {
+    console.error("Error fetching enrollments:", enrollError);
+    throw enrollError;
   }
 
-  const tournament = Array.isArray(team?.torneos)
-    ? team.torneos[0]
-    : team?.torneos ?? null;
+  // 2. Obtenemos pagos
+  const { data: payments, error: payError } = await supabase
+    .from("pagos")
+    .select("*")
+    .eq("player_id", playerId);
+
+  if (payError) {
+    console.error("Error fetching payments:", payError);
+    throw payError;
+  }
 
   return {
-    player: player ?? null,
-    team: team
-      ? {
-          id: team.id,
-          nombre: team.nombre,
-        }
-      : null,
-    tournament,
+    enrollments: (enrollments as unknown as EnrollmentData[]) || [],
+    payments: (payments as unknown as PaymentData[]) || []
   };
 }

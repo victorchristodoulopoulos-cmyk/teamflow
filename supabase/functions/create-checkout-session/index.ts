@@ -1,110 +1,90 @@
-import { serve, createClient, Stripe } from "../_shared/deps.ts";
+// supabase/functions/create-checkout-session/index.ts
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Max-Age": "86400",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function json(data: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
-}
+serve(async (req: Request) => {
+  // 1. Manejo de CORS (Pre-flight)
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
-serve(async (req) => {
   try {
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
-    if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
-
-    const { pago_id } = await req.json().catch(() => ({}));
-    if (!pago_id) return json({ error: "Missing pago_id" }, 400);
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-    const appUrl = Deno.env.get("APP_URL") ?? "http://localhost:5173";
-
-    if (!supabaseUrl || !anonKey || !serviceRole || !stripeSecret) {
-      return json({ error: "Missing env vars in Supabase secrets" }, 500);
-    }
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Missing authorization header" }, 401);
-
-    // Validate user token
-    const supabaseUserClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // 2. Inicializar Stripe y Supabase
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      httpClient: Stripe.createFetchHttpClient(),
     });
+    
+    // Cliente de Supabase para verificar al usuario que hace la petición
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
 
-    const { data: userData, error: userErr } = await supabaseUserClient.auth.getUser();
-    const user = userData?.user;
-    if (userErr || !user) return json({ error: "Unauthorized" }, 401);
+    // 3. Verificar Usuario Autenticado
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) throw new Error("No autorizado");
 
-    // Service role client
-    const supabase = createClient(supabaseUrl, serviceRole);
+    // 4. Obtener el pago_id del cuerpo de la petición
+    const { pago_id } = await req.json();
+    if (!pago_id) throw new Error("Falta el ID del pago");
 
-    const { data: profile, error: profErr } = await supabase
-      .from("profiles")
-      .select("id, role, player_id")
-      .eq("id", user.id)
-      .single();
-
-    if (profErr || !profile) return json({ error: "Profile not found" }, 404);
-    if ((profile.role ?? "").toLowerCase() !== "family") return json({ error: "Only family can pay" }, 403);
-
-    const { data: pago, error: pagoErr } = await supabase
+    // 5. Buscar los detalles del pago en la base de datos
+    // Usamos el cliente del usuario para asegurar que solo pueda pagar lo que le corresponde
+    const { data: pago, error: pagoError } = await supabaseClient
       .from("pagos")
-      .select("id, player_id, concepto, importe, estado")
+      .select("*")
       .eq("id", pago_id)
       .single();
 
-    if (pagoErr || !pago) return json({ error: "Pago not found" }, 404);
-    if (pago.player_id !== profile.player_id) return json({ error: "Forbidden: not your pago" }, 403);
-    if ((pago.estado ?? "").toLowerCase() !== "pendiente") return json({ error: "Pago not payable" }, 400);
+    if (pagoError || !pago) throw new Error("Pago no encontrado o sin acceso");
+    if (pago.estado === 'pagado') throw new Error("Este recibo ya ha sido pagado");
 
-    const amountCents = Math.round(Number(pago.importe) * 100);
-    if (!Number.isFinite(amountCents) || amountCents <= 0) return json({ error: "Invalid amount" }, 400);
-
-    const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" });
-
-    const successUrl = `${appUrl}/#/family-dashboard/pagos?status=success&pago=${pago.id}`;
-    const cancelUrl = `${appUrl}/#/family-dashboard/pagos?status=cancel&pago=${pago.id}`;
-
+    // 6. Crear la Sesión de Checkout en Stripe
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
       payment_method_types: ["card"],
-      line_items: [{
-        price_data: {
-          currency: "eur",
-          unit_amount: amountCents,
-          product_data: { name: pago.concepto ?? "Pago TeamFlow" },
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: pago.concepto || "Cuota del Club",
+              description: `Pago correspondiente al recibo #${pago.id.slice(0,8)}`,
+            },
+            unit_amount: Math.round(Number(pago.importe) * 100), // Stripe requiere céntimos
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      ],
+      mode: "payment",
+      // URLs de retorno a tu aplicación local o producción
+      success_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=success`,
+      cancel_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=cancel`,
+      // MUY IMPORTANTE: Pasamos el pago_id en la metadata para que el webhook lo reconozca
       metadata: {
         pago_id: pago.id,
-        player_id: pago.player_id,
-        payer_user_id: user.id,
+        user_id: user.id
       },
     });
 
-    await supabase
-      .from("pagos")
-      .update({
-        stripe_checkout_session_id: session.id,
-        stripe_status: session.status ?? "open",
-      })
-      .eq("id", pago.id);
+    console.log(`✅ Sesión de Stripe creada para el pago ${pago.id}: ${session.url}`);
 
-    return json({ url: session.url }, 200);
-  } catch (e) {
-    return json({ error: String(e) }, 500);
+    return new Response(JSON.stringify({ url: session.url }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+
+  } catch (error: any) {
+    console.error(`❌ Error creando sesión de Stripe: ${error.message}`);
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
+    });
   }
 });

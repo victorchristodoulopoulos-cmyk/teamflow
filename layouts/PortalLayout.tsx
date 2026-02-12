@@ -1,199 +1,109 @@
 import React from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useTheme } from "../context/Theme";
-
-type Portal = "family" | "team" | "admin";
-
-type LinkItem = { to: string; label: string; icon: React.ReactNode; end?: boolean };
-
-function cx(...s: Array<string | false | undefined | null>) {
-  return s.filter(Boolean).join(" ");
-}
-
-function SideLink({ to, label, icon, end }: LinkItem) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        cx(
-          "flex items-center gap-3 px-4 py-3 rounded-2xl transition font-semibold border",
-          isActive
-            ? "bg-white/10 text-white border-white/10 shadow-soft"
-            : "text-white/70 hover:bg-white/6 hover:text-white border-transparent"
-        )
-      }
-    >
-      <span className="text-lg">{icon}</span>
-      <span>{label}</span>
-    </NavLink>
-  );
-}
-
-function MobileTab({ to, label, icon, end }: LinkItem) {
-  return (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        cx(
-          "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl min-w-[78px] transition",
-          isActive ? "bg-white/10 text-white" : "text-white/65 hover:text-white"
-        )
-      }
-    >
-      <div className="text-xl leading-none">{icon}</div>
-      <div className="text-[11px] font-semibold tracking-tight">{label}</div>
-    </NavLink>
-  );
-}
+import { LogOut } from "lucide-react"; 
 
 export default function PortalLayout({
-  portal,
-  title,
-  subtitle,
-  links,
-  getSessionEmail,
-  onLogout,
-}: {
-  portal: Portal;
-  title: string;
-  subtitle: string;
-  links: LinkItem[];
-  getSessionEmail: () => string;
-  onLogout?: () => Promise<void> | void;
-}) {
+  portal, title, subtitle, links, getSessionEmail, onLogout, brandName, children
+}: any) {
   const navigate = useNavigate();
-  const { theme, toggle } = useTheme();
-  const email = getSessionEmail();
-
-  const logout = async () => {
-    try {
-      await onLogout?.();
-    } finally {
-      // fallback: limpia session app
-      localStorage.removeItem("session");
-      navigate("/", { replace: true });
-    }
-  };
 
   return (
-    <div data-portal={portal} className="min-h-screen bg-app bg-noise">
-      <div className="min-h-screen w-full relative z-10">
-        {/* DESKTOP */}
-        <div className="hidden lg:grid lg:grid-cols-[320px_1fr] lg:min-h-screen">
-          <aside className="p-6 border-r border-white/10">
-            <div className="tf-card">
-              <div className="tf-card-inner">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-lg font-extrabold tracking-tight">⚡ TEAMFLOW</div>
-                    <div className="text-xs tf-muted">{subtitle}</div>
-                  </div>
+    // IMPORTANTE: data-portal={portal} es lo que activa el cambio de color en CSS
+    <div data-portal={portal} className="min-h-screen bg-[#0D1B2A] text-[#E0E1DD] font-sans selection:bg-brand-neon selection:text-[#0D1B2A] pb-28 lg:pb-0">
+      
+      {/* --- DESKTOP SIDEBAR --- */}
+      <aside className="hidden lg:flex flex-col w-[260px] fixed h-full z-30 border-r border-white/5 bg-[#0D1B2A]/90 backdrop-blur-xl">
+        <div className="p-8">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-10">
+            {/* CAMBIO AQUÍ: bg-brand-neon */}
+            <div className="w-8 h-8 rounded bg-brand-neon flex items-center justify-center text-[#0D1B2A] font-black font-display text-lg">TF</div>
+            <span className="font-display font-bold text-lg tracking-tight text-white">TEAMFLOW</span>
+          </div>
 
-                  <button onClick={toggle} className="tf-pill text-xs">
-                    {theme === "dark" ? "🌙" : "☀️"} <span className="tf-muted">Tema</span>
-                  </button>
-                </div>
-
-                <div className="mt-4 tf-divider" />
-
-                <div className="mt-4">
-                  <div className="text-[11px] uppercase tracking-wider tf-muted">Conectado</div>
-                  <div className="mt-1 font-semibold truncate">{email || "—"}</div>
-                </div>
-
-                <nav className="mt-5 flex flex-col gap-2">
-                  {links.map((l) => (
-                    <SideLink key={l.to} {...l} />
-                  ))}
-                </nav>
-
-                <button
-                  onClick={logout}
-                  className="mt-6 w-full rounded-2xl px-4 py-3 font-bold transition border border-red-500/25 bg-red-500/10 text-red-200 hover:bg-red-500/18"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
-            </div>
-          </aside>
-
-          <section className="p-8">
-            {/* Header */}
-            <div className="tf-card">
-              <div className="tf-card-inner flex items-center justify-between">
-                <div>
-                  <div className="text-xs tf-muted">{title}</div>
-                  <div className="tf-title text-2xl">{subtitle}</div>
-                  <div className="text-sm tf-muted mt-1">
-                    Conectado: <span className="text-white/85">{email || "—"}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button onClick={toggle} className="tf-pill">
-                    {theme === "dark" ? "🌙" : "☀️"} <span className="text-sm">Tema</span>
-                  </button>
-                  <button onClick={logout} className="tf-pill">
-                    🚪 <span className="text-sm">Salir</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <main className="mt-6">
-              <Outlet />
-            </main>
-          </section>
-        </div>
-
-        {/* MOBILE */}
-        <div className="lg:hidden">
-          {/* Sticky topbar */}
-          <header className="sticky top-0 z-40 safe-top">
-            <div className="px-4 pt-3">
-              <div className="tf-card">
-                <div className="tf-card-inner py-4 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="text-[11px] tf-muted">{title}</div>
-                    <div className="tf-title text-lg truncate">{subtitle}</div>
-                    <div className="text-[12px] tf-muted truncate">
-                      {email ? `Conectado: ${email}` : "—"}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button onClick={toggle} className="tf-pill text-xs">
-                      {theme === "dark" ? "🌙" : "☀️"}
-                    </button>
-                    <button onClick={logout} className="tf-pill text-xs">
-                      🚪
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="px-4 pt-4 pb-28">
-            <Outlet />
-          </main>
-
-          {/* Bottom nav */}
-          <nav className="fixed bottom-0 left-0 right-0 z-50 safe-bottom">
-            <div className="px-4 pb-4">
-              <div className="mx-auto max-w-[520px] rounded-[28px] border border-white/10 bg-black/35 backdrop-blur-xl shadow-[0_22px_70px_rgba(0,0,0,0.60)]">
-                <div className="px-2 py-2 flex items-center justify-between">
-                  {links.map((l) => (
-                    <MobileTab key={l.to} {...l} />
-                  ))}
-                </div>
-              </div>
-            </div>
+          {/* Navegación PC */}
+          <nav className="space-y-2">
+            {links.map((l: any) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                end={l.end}
+                className={({ isActive }) => `
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  ${isActive 
+                    /* CAMBIO AQUÍ: bg-brand-neon y text-[#0D1B2A] */
+                    ? "bg-brand-neon text-[#0D1B2A] font-bold shadow-[0_0_20px_rgba(255,255,255,0.2)] translate-x-1" 
+                    : "text-slate-400 hover:text-white hover:bg-white/5"}
+                `}
+              >
+                <l.icon size={18} />
+                <span>{l.label}</span>
+              </NavLink>
+            ))}
           </nav>
         </div>
+
+        {/* User Info Footer */}
+        <div className="mt-auto p-6 border-t border-white/5">
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Conectado como</p>
+          <p className="text-sm text-white truncate font-medium mb-3">{getSessionEmail?.()}</p>
+          <button onClick={onLogout} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors font-bold uppercase tracking-wider">
+            <LogOut size={14} /> Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* --- CONTENIDO PRINCIPAL --- */}
+      <main className="lg:pl-[260px]">
+        {/* HEADER MÓVIL */}
+        <div className="lg:hidden flex items-center justify-between p-6 sticky top-0 z-20 bg-[#0D1B2A]/80 backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center gap-2">
+            {/* CAMBIO AQUÍ: bg-brand-neon */}
+            <div className="w-6 h-6 rounded bg-brand-neon flex items-center justify-center text-[#0D1B2A] font-black text-xs">TF</div>
+            <span className="font-display font-bold text-white tracking-tight">TeamFlow</span>
+          </div>
+          <button onClick={onLogout} className="p-2 text-slate-400 hover:text-white">
+            <LogOut size={18} />
+          </button>
+        </div>
+
+        {/* ÁREA DE CONTENIDO */}
+        <div className="p-6 lg:p-12 max-w-6xl mx-auto">
+          <div className="mb-8 lg:mb-12">
+            {/* CAMBIO AQUÍ: text-brand-neon */}
+            <p className="text-brand-neon text-[10px] lg:text-xs font-bold uppercase tracking-[0.2em] mb-2">{title}</p>
+            <h1 className="text-3xl lg:text-5xl font-display font-bold text-white tracking-tight">{subtitle}</h1>
+          </div>
+          
+          {children ?? <Outlet />}
+        </div>
+      </main>
+
+      {/* --- MOBILE NAVBAR (DOCK) --- */}
+      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-50">
+        <div className="bg-[#162032]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] p-2 flex justify-between items-center">
+          {links.map((l: any) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.end}
+              className={({ isActive }) => `
+                flex flex-col items-center justify-center w-full py-2 rounded-xl transition-all duration-200
+                /* CAMBIO AQUÍ: text-brand-neon */
+                ${isActive ? "text-brand-neon bg-white/5" : "text-slate-500 hover:text-slate-300"}
+              `}
+            >
+              {({ isActive }) => (
+                <>
+                  <l.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[9px] font-bold uppercase tracking-wider mt-1">{l.label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }
