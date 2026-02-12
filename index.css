@@ -2,149 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ================================
-   TEAMFLOW — DESIGN SYSTEM v1
-   - 1 sistema, 3 portales (TEAM/FAMILY/CLUB)
-   - Desktop: web pro
-   - Mobile: feel de app (sticky, blur, safe areas)
-================================ */
-
-/* ---------- Tokens base (dark) ---------- */
-:root {
-  --bg0: 8 12 20;
-  --bg1: 10 16 28;
-
-  --panel: 14 20 34;
-  --panel2: 16 24 40;
-
-  --text: 235 240 255;
-  --muted: 160 170 190;
-
-  --border: 255 255 255;
-
-  --shadowSoft: 0 12px 34px rgba(0, 0, 0, 0.38);
-  --shadowStrong: 0 22px 80px rgba(0, 0, 0, 0.60);
-
-  /* Fallback accent */
-  --accent: 56 189 248;
-  --accent2: 34 211 238;
-}
-
-/* Light mode */
-:root[data-theme="light"] {
-  --bg0: 245 248 252;
-  --bg1: 233 240 248;
-
-  --panel: 255 255 255;
-  --panel2: 248 250 252;
-
-  --text: 16 22 35;
-  --muted: 85 95 120;
-
-  --shadowSoft: 0 12px 34px rgba(15, 23, 42, 0.10);
-  --shadowStrong: 0 22px 80px rgba(15, 23, 42, 0.14);
-}
-
-/* ---------- Portal accents ---------- */
-/* TEAM = LIMA */
-[data-portal="team"] { --accent: 180 255 60; --accent2: 90 180 255; }
-/* FAMILY = MORADO */
-[data-portal="family"] { --accent: 168 85 247; --accent2: 90 180 255; }
-/* CLUB = CYAN/AZUL */
-[data-portal="club"] { --accent: 56 189 248; --accent2: 34 211 238; }
-
-/* ---------- Base ---------- */
-html, body { height: 100%; }
+/* FORZAMOS LOS ESTILOS GLOBALES */
 body {
-  color: rgb(var(--text));
-  background: rgb(var(--bg0));
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background-color: #0D1B2A; /* Azul Profundo */
+  background-image: 
+    linear-gradient(rgba(13, 27, 42, 0.9), rgba(13, 27, 42, 0.9)),
+    url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+  font-family: 'Inter', sans-serif;
 }
 
-/* ---------- Background premium ---------- */
+/* Títulos con fuente Sora (Chula) */
+h1, h2, h3, h4, .font-display, .tf-title {
+  font-family: 'Sora', sans-serif;
+}
+
+/* =========================================
+   VARIABLES DE FUSIÓN
+   Hacen que los componentes nuevos usen colores viejos
+========================================= */
+:root {
+  /* COLORES BASE (Fondo azul oscuro siempre igual) */
+  --bg-deep: #0D1B2A;
+  
+  /* COLOR ACENTO POR DEFECTO (TEAM - LIMA) */
+  --accent: #C9FF2F; 
+}
+
+/* --- MAGIA AQUÍ: CAMBIO DE COLOR SEGÚN EL PORTAL --- */
+
+/* Si el portal es FAMILY -> MORADO */
+[data-portal="family"] {
+  --accent: #A855F7; /* Purple Neón */
+}
+
+/* Si el portal es CLUB -> AZUL CIELO */
+[data-portal="club"] {
+  --accent: #38BDF8; /* Sky Blue Neón */
+}
+
+/* Si el portal es TEAM (o admin) -> LIMA (Mantenemos el default o lo forzamos) */
+[data-portal="team"] {
+  --accent: #C9FF2F; /* Lime Neón */
+}
+
+/* --- FIN MAGIA --- */
+
+body {
+  background-color: var(--bg-deep);
+  /* ... resto de tus estilos ... */
+}
+
+/* Clase maestra para fondos */
 .bg-app {
-  background:
-    radial-gradient(900px 520px at 20% 10%, rgba(var(--accent), 0.14), transparent 58%),
-    radial-gradient(900px 520px at 75% 20%, rgba(var(--accent2), 0.12), transparent 58%),
-    radial-gradient(700px 480px at 45% 90%, rgba(255, 255, 255, 0.06), transparent 60%),
-    linear-gradient(180deg, rgb(var(--bg0)) 0%, rgb(var(--bg1)) 100%);
+  background-color: #0D1B2A;
+  min-height: 100vh;
 }
 
-.bg-noise { position: relative; }
-.bg-noise::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.06;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.65'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
+/* Estilo de Tarjetas (Glass Azul) */
+.tf-card, .glass-card {
+  background: rgba(22, 32, 50, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
-/* ---------- Helpers ---------- */
-.tf-muted { color: rgb(var(--muted)); }
-.tf-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+/* Botones Lima */
+.btn-neon, .tf-btn-main {
+  background-color: #C9FF2F;
+  color: #0D1B2A;
+  font-weight: 700;
+  font-family: 'Sora', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 24px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-/* ---------- Glass / cards ---------- */
-.tf-glass {
-  border-radius: 24px;
-  border: 1px solid rgba(var(--border), 0.10);
-  background: linear-gradient(180deg, rgba(var(--panel), 0.72), rgba(var(--panel2), 0.56));
-  box-shadow: var(--shadowSoft);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+.btn-neon:hover {
+  box-shadow: 0 0 20px rgba(201, 255, 47, 0.4);
+  transform: translateY(-2px);
 }
-
-.tf-card {
-  border-radius: 24px;
-  border: 1px solid rgba(var(--border), 0.10);
-  background: rgba(var(--panel), 0.65);
-  box-shadow: var(--shadowSoft);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-/* Buttons */
-.tf-btn {
-  border-radius: 999px;
-  padding: .65rem 1rem;
-  border: 1px solid rgba(var(--border), 0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgb(var(--text));
-  transition: transform .12s ease, background .12s ease, border-color .12s ease;
-}
-.tf-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(var(--border), 0.18);
-  background: rgba(255,255,255,0.08);
-}
-.tf-btn--accent {
-  border-color: rgba(var(--accent), 0.38);
-  background: linear-gradient(135deg, rgba(var(--accent), 0.18), rgba(var(--accent2), 0.12));
-  box-shadow: 0 0 0 1px rgba(var(--accent), 0.12), 0 10px 30px rgba(0,0,0,.28);
-}
-
-.tf-input {
-  width: 100%;
-  border-radius: 14px;
-  padding: .75rem .9rem;
-  border: 1px solid rgba(var(--border), 0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgb(var(--text));
-  outline: none;
-}
-.tf-input:focus {
-  border-color: rgba(var(--accent), 0.55);
-  box-shadow: 0 0 0 5px rgba(var(--accent), 0.14);
-}
-
-/* Scrollbar */
-*::-webkit-scrollbar { height: 10px; width: 10px; }
-*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
-*::-webkit-scrollbar-track { background: rgba(0,0,0,0.10); }
