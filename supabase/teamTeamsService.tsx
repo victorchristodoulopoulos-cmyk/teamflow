@@ -1,11 +1,13 @@
+// src/supabase/teamTeamsService.ts
 import { supabase } from "./supabaseClient";
 
 export type AssignedTeam = {
   id: string;
-  nombre: string;
+  name: string;
+  torneo_id: string | null; // <--- 🚨 AÑADIDO AQUÍ
   torneo: {
     id: string;
-    nombre: string;
+    name: string;
     ciudad: string | null;
     fecha: string | null;
   } | null;
@@ -38,7 +40,7 @@ export async function getAssignedTeams(): Promise<AssignedTeam[]> {
 
 const { data: e1, error: e1Err } = await supabase
   .from("equipos")
-  .select("id, nombre, club_id, torneo_id")
+  .select("id, name, club_id, torneo_id")
   .eq("id", testId);
 
 console.log("[DBG4] equipos eq(id) error:", e1Err);
@@ -50,11 +52,11 @@ console.log("[DBG4] equipos eq(id) data:", e1);
     .from("equipos")
     .select(`
       id,
-      nombre,
+      name,
       torneo_id,
       torneos:torneo_id (
         id,
-        nombre,
+        name,
         ciudad,
         fecha
       )
@@ -68,7 +70,8 @@ console.log("[DBG4] equipos eq(id) data:", e1);
 
   return (equipos ?? []).map((e: any) => ({
     id: e.id,
-    nombre: e.nombre,
+    name: e.name,
+    torneo_id: e.torneo_id, // <--- 🚨 AÑADIDO AQUÍ PARA QUE NO SE PIERDA
     torneo: e.torneos ?? null,
   }));
 }

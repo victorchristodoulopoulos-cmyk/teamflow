@@ -123,7 +123,7 @@ export default function ClubTournaments() {
             {/* Info Principal */}
             <div className="relative z-10 space-y-2 mb-6">
               <h3 className="text-2xl font-display font-black text-white uppercase italic leading-none tracking-tight">
-                {t.torneos?.nombre || "Torneo Desconocido"}
+                {t.torneos?.name || "Torneo Desconocido"}
               </h3>
               <div className="flex flex-col gap-1">
                  <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wide">
@@ -195,7 +195,7 @@ export default function ClubTournaments() {
                       <option value="">-- Buscar en la base de datos --</option>
                       {globalTournaments.map(gt => (
                         <option key={gt.id} value={gt.id}>
-                          {gt.nombre} — {gt.ciudad}
+                          {gt.name} — {gt.ciudad}
                         </option>
                       ))}
                     </select>

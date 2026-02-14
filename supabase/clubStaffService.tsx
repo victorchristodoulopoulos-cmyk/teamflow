@@ -8,8 +8,8 @@ export async function getClubTeamsWithStaff(clubId: string) {
   const { data: teams, error } = await supabase
     .from("equipos")
     .select(`
-      id, nombre, torneo_id,
-      torneos (id, nombre, ciudad),
+      id, name, torneo_id,
+      torneos (id, name, ciudad),
       team_users (
         id, profile_id,
         profiles (email, full_name)

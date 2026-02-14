@@ -92,9 +92,9 @@ export default function ClubStaff() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                    <Shield size={14} className="text-purple-400" />
-                   <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">{team.torneos?.nombre}</span>
+                   <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">{team.torneos?.name}</span>
                 </div>
-                <h3 className="text-2xl font-display font-black text-white uppercase italic">{team.nombre}</h3>
+                <h3 className="text-2xl font-display font-black text-white uppercase italic">{team.name}</h3>
               </div>
               <button onClick={() => openAssignModal(team)} className="p-2 rounded-xl bg-white/5 hover:bg-brand-neon hover:text-brand-deep text-slate-400 transition-all" title="Añadir Entrenador">
                 <UserPlus size={20} />
@@ -135,7 +135,7 @@ export default function ClubStaff() {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsModalOpen(false)} />
           <div className="bg-[#162032] border border-white/10 w-full max-w-md rounded-[32px] p-8 shadow-2xl relative animate-in zoom-in-95">
              <h3 className="text-xl font-display font-black text-white uppercase italic mb-4">
-               Asignar a {selectedTeam?.nombre}
+               Asignar a {selectedTeam?.name}
              </h3>
 
              {/* FASE 1: INPUT DE EMAIL (Si no hay link generado) */}
@@ -195,7 +195,7 @@ export default function ClubStaff() {
 
                   {/* Botón WhatsApp */}
                   <a 
-                    href={`https://wa.me/?text=Hola, te invito a unirte al staff técnico de ${selectedTeam?.nombre}. Activa tu cuenta aquí: ${encodeURIComponent(inviteLink)}`}
+                    href={`https://wa.me/?text=Hola, te invito a unirte al staff técnico de ${selectedTeam?.name}. Activa tu cuenta aquí: ${encodeURIComponent(inviteLink)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-2 py-3 rounded-xl bg-[#25D366] text-[#075E54] font-black uppercase tracking-wider hover:brightness-110 transition-all shadow-lg"
