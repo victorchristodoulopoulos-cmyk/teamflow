@@ -22,7 +22,7 @@ export async function getTeamLogistics(teamId: string) {
   const { data: transport } = await supabase
     .from("transportes")
     .select("*")
-    .eq("equipo_id", teamId) // Transporte específico de este equipo
+    .eq("team_id", teamId) // Transporte específico de este equipo
     .eq("torneo_id", team.torneo_id)
     .single();
 

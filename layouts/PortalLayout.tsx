@@ -67,8 +67,9 @@ export default function PortalLayout({
           </button>
         </div>
 
-        {/* ÁREA DE CONTENIDO */}
-        <div className="p-6 lg:p-12 max-w-6xl mx-auto">
+        {/* ÁREA DE CONTENIDO (FIX ANCHO MAXIMO) */}
+        {/* Aquí es donde cambiamos max-w-6xl por max-w-[1600px] para que ocupe más pantalla */}
+        <div className="p-6 lg:p-12 max-w-[1600px] mx-auto">
           <div className="mb-8 lg:mb-12">
             {/* CAMBIO AQUÍ: text-brand-neon */}
             <p className="text-brand-neon text-[10px] lg:text-xs font-bold uppercase tracking-[0.2em] mb-2">{title}</p>

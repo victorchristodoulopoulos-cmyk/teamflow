@@ -37,7 +37,7 @@ export default function PlayersPreview({
                 <p className="truncate font-medium text-white">
                   {p.name} {p.surname ?? ""}
                 </p>
-                <p className="text-xs text-white/55">Equipo: {p.equipo_id}</p>
+                <p className="text-xs text-white/55">Equipo: {p.team_id}</p>
               </div>
               <StatusPill status={p.status} />
             </div>

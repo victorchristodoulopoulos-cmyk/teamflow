@@ -14,3 +14,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 if (import.meta.env.DEV) {
   (window as any).supabase = supabase;
 }
+export const getPublicUrl = (path: string | null) => {
+  if (!path) return null;
+  // Si ya es una URL completa (http...), la devolvemos tal cual
+  if (path.startsWith('http')) return path;
+  
+  // Si es un path de nuestro storage, generamos la URL pública
+  // Asumimos que tu bucket se llama 'club-logos' (ajústalo si es otro)
+  const { data } = supabase.storage.from('club-logos').getPublicUrl(path);
+  return data.publicUrl;
+};

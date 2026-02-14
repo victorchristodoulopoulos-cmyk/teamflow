@@ -72,13 +72,13 @@ const TeamDashboardHome = () => {
           </div>
           
           <h1 className="text-5xl md:text-6xl font-display font-black text-white italic uppercase tracking-tighter leading-none">
-            {activeTeam.nombre}
+            {activeTeam.name}
           </h1>
           
           <div className="flex flex-wrap gap-6 mt-4 text-xs text-slate-400 font-bold uppercase tracking-wider">
              <span className="flex items-center gap-1.5 text-white">
                <Trophy size={14} className="text-brand-neon" /> 
-               {activeTeam.torneo?.nombre ?? "Torneo no asignado"}
+               {activeTeam.torneo?.name ?? "Torneo no asignado"}
              </span>
              {activeTeam.torneo?.ciudad && (
                <span className="flex items-center gap-1.5">

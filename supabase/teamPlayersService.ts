@@ -5,7 +5,9 @@ export type TeamPlayer = {
   name: string;
   surname: string | null;
   status: string | null;
-  equipo_id: string;
+  team_id: string;
+  actual_team: string | null; // <--- NUEVO
+  position: string | null;    // <--- NUEVO
 };
 
 export async function getPlayersForAssignedTeams(teamId: string): Promise<TeamPlayer[]> {
@@ -14,15 +16,17 @@ export async function getPlayersForAssignedTeams(teamId: string): Promise<TeamPl
     .select(
       `
       status,
-      equipo_id,
+      team_id,
       jugadores:player_id (
         id,
         name,
-        surname
+        surname,
+        actual_team,
+        position
       )
     `
     )
-    .eq("equipo_id", teamId);
+    .eq("team_id", teamId);
 
   if (error) {
     console.error("getPlayersForAssignedTeams error:", error);
@@ -34,6 +38,8 @@ export async function getPlayersForAssignedTeams(teamId: string): Promise<TeamPl
     name: row.jugadores.name,
     surname: row.jugadores.surname,
     status: row.status,
-    equipo_id: row.equipo_id,
+    team_id: row.team_id,
+    actual_team: row.jugadores.actual_team, // <--- NUEVO
+    position: row.jugadores.position,       // <--- NUEVO
   }));
 }

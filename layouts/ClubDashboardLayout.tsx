@@ -10,7 +10,7 @@ const links = [
   { to: "/club-dashboard/equipos", label: "Equipos", icon: Users },
   { to: "/club-dashboard/jugadores", label: "Jugadores", icon: UserPlus },
   { to: "/club-dashboard/staff", label: "Staff", icon: Briefcase },
-  { to: "/club-dashboard/pagos", label: "Finanzas", icon: CreditCard },
+  { to: "/club-dashboard/pagos", label: "Pagos", icon: CreditCard },
 ];
 
 function getEmailFromLocalSession() {

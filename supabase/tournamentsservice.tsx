@@ -13,7 +13,7 @@ export async function getTournamentByTeam(teamId: string): Promise<Tournament | 
   const { data, error } = await supabase
     .from("torneo_equipos")
     .select("torneos:torneo_id ( id, nombre, ciudad, fecha, estado )")
-    .eq("equipo_id", teamId)
+    .eq("team_id", teamId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);

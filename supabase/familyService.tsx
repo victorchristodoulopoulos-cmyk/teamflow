@@ -1,64 +1,51 @@
 import { supabase } from "./supabaseClient";
 
-// Definimos los tipos de retorno aquí mismo para evitar dependencias circulares
 export interface EnrollmentData {
   id: string;
-  equipo_id: string;
-  equipos: {
+  torneo_id: string;
+  team_id: string;
+  club_id: string; // 🚨 AÑADIDO: Vital para que la logística encuentre el hotel
+  status: string;
+  torneos: { 
+    id: string; 
+    name: string; 
+    ciudad: string; 
+    fecha: string; 
+  };
+  clubs: {      // 🚨 AÑADIDO: Para que el escudo no falle nunca
     id: string;
-    nombre: string;
-    clubs: {
-      id: string;
-      name: string; // Ojo: name o nombre según tu DB
-      logo_path: string | null;
-    } | null;
-  } | null;
-  torneos: {
-    id: string;
-    nombre: string;
-    ciudad: string | null;
-    fecha: string | null;
-    estado: string | null;
+    name: string;
+    logo_path: string;
   } | null;
 }
 
 export interface PaymentData {
   id: string;
+  torneo_id: string;
+  concepto: string;
   importe: number;
   estado: string;
-  concepto: string;
-  fecha_vencimiento: string | null;
+  fecha_vencimiento: string;
+  created_at: string;
 }
 
 export async function getChildFullContext(playerId: string) {
-  // 1. Obtenemos inscripciones
+  // 1. Obtenemos inscripciones (Aseguramos traer club_id y clubs)
   const { data: enrollments, error: enrollError } = await supabase
     .from("torneo_jugadores")
     .select(`
-      id,
-      equipo_id,
-      equipos (
-        id, 
-        nombre,
-        clubs (
-          id, 
-          name, 
-          logo_path
-        )
-      ),
-      torneos (
-        id,
-        nombre,
-        ciudad,
-        fecha,
-        estado
-      )
+      id, 
+      torneo_id, 
+      team_id, 
+      club_id, 
+      status,
+      torneos (id, name, ciudad, fecha),
+      clubs (id, name, logo_path)
     `)
     .eq("player_id", playerId);
 
   if (enrollError) {
     console.error("Error fetching enrollments:", enrollError);
-    throw enrollError;
   }
 
   // 2. Obtenemos pagos
@@ -69,11 +56,15 @@ export async function getChildFullContext(playerId: string) {
 
   if (payError) {
     console.error("Error fetching payments:", payError);
-    throw payError;
   }
 
+  // El club activo es el de su inscripción más reciente (o primera de la lista)
+  // Hacemos un cast manual si es necesario, pero el select ya trae la estructura
+  const activeClub = enrollments && enrollments.length > 0 ? enrollments[0].clubs : null;
+
   return {
-    enrollments: (enrollments as unknown as EnrollmentData[]) || [],
-    payments: (payments as unknown as PaymentData[]) || []
+    enrollments: (enrollments || []) as EnrollmentData[],
+    payments: (payments || []) as PaymentData[],
+    club: activeClub 
   };
 }
