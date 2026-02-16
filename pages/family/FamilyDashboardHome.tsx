@@ -14,22 +14,18 @@ const getClubLogoUrl = (path: string | null) => {
 
 export default function FamilyDashboardHome() {
   const navigate = useNavigate();
-  // 1. Obtenemos todo del contexto (fíjate que ahora sacamos changeActiveChild)
   const { players, activeChild, activeChildId, changeActiveChild, loading: appLoading, globalData } = useFamily();
 
-  // 🛡️ EFECTO FRANCOTIRADOR: Si entra y está en "TODOS", forzamos al primer hijo
   useEffect(() => {
     if (!appLoading && players.length > 0 && !activeChildId) {
       changeActiveChild(players[0].id);
     }
   }, [appLoading, players, activeChildId, changeActiveChild]);
 
-  // Pantalla de carga (o espera mientras auto-selecciona al primer hijo)
   if (appLoading || (!activeChildId && players.length > 0)) {
     return <div className="p-10 text-brand-neon animate-pulse font-black uppercase tracking-widest">Cargando expediente...</div>;
   }
 
-  // 2. Cálculo del próximo torneo (SOLO para el niño activo)
   let nextTournament: any = null;
   if (activeChildId) {
     const childCache = globalData[activeChildId];
@@ -43,13 +39,14 @@ export default function FamilyDashboardHome() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    /* CORRECCIÓN AQUÍ: Quitamos animate-in y fade-in que hacían el zoom lateral */
+    <div className="space-y-6 transition-opacity duration-300 ease-linear">
       
       {/* GRID SUPERIOR */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* TARJETA PRINCIPAL (SOLO HIJO ESPECÍFICO) */}
-        <div className="lg:col-span-2 relative overflow-hidden rounded-[32px] border border-white/5 bg-[#162032]/60 p-8 md:p-10 flex flex-col justify-between min-h-[280px] group transition-all">
+        {/* TARJETA PRINCIPAL */}
+        <div className="lg:col-span-2 relative overflow-hidden rounded-[32px] border border-white/5 bg-[#162032]/60 p-8 md:p-10 flex flex-col justify-between min-h-[280px] group">
           <div className="absolute top-0 right-0 -mt-4 -mr-4 w-64 h-64 bg-brand-neon rounded-full blur-[120px] opacity-[0.05] pointer-events-none"></div>
           
           <div className="relative z-10 w-full">
@@ -71,9 +68,9 @@ export default function FamilyDashboardHome() {
           <div className="relative z-10 pt-8 border-t border-white/5 flex justify-between items-center mt-6">
             <button 
               onClick={() => navigate('/family-dashboard/perfil')}
-              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest group/link"
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-xs font-black uppercase tracking-widest"
             >
-              Gestionar Ficha <ChevronRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
+              Gestionar Ficha <ChevronRight size={14} />
             </button>
             <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500">
               <User size={24} />
@@ -84,13 +81,11 @@ export default function FamilyDashboardHome() {
         {/* TARJETA PRÓXIMO TORNEO */}
         <div 
           onClick={() => navigate("/family-dashboard/torneos")}
-          className="lg:col-span-1 cursor-pointer rounded-[32px] border border-white/5 bg-[#162032]/60 p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group hover:border-brand-neon/30 transition-all min-h-[280px]"
+          className="lg:col-span-1 cursor-pointer rounded-[32px] border border-white/5 bg-[#162032]/60 p-8 flex flex-col justify-center items-center text-center relative overflow-hidden group hover:border-brand-neon/30 transition-colors min-h-[280px]"
         >
-          <div className="absolute inset-0 bg-gradient-to-b from-brand-neon/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          
           {nextTournament ? (
             <>
-              <div className="mb-4 w-20 h-20 rounded-2xl bg-[#0D1B2A] border border-white/5 shadow-xl flex items-center justify-center overflow-hidden relative group-hover:scale-105 transition-transform">
+              <div className="mb-4 w-20 h-20 rounded-2xl bg-[#0D1B2A] border border-white/5 shadow-xl flex items-center justify-center overflow-hidden relative">
                  {nextTournament.clubs?.logo_path ? (
                     <img src={getClubLogoUrl(nextTournament.clubs.logo_path)} alt="Club" className="w-full h-full object-cover" />
                  ) : (
@@ -110,9 +105,6 @@ export default function FamilyDashboardHome() {
                  <span className="text-slate-400 text-[11px] mt-2 italic flex items-center justify-center gap-1">
                    <MapPin size={10} /> {nextTournament.torneos?.ciudad || "Sede TBC"} 
                  </span>
-                 <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                   {nextTournament.torneos?.fecha ? new Date(nextTournament.torneos.fecha).toLocaleDateString() : "FECHA TBC"}
-                 </span>
               </div>
             </>
           ) : (
@@ -120,7 +112,6 @@ export default function FamilyDashboardHome() {
               <div className="mb-4 p-4 rounded-2xl bg-[#0D1B2A] border border-white/5 shadow-xl text-slate-600">
                 <Shield size={32} />
               </div>
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">Agenda Despejada</h3>
               <p className="text-xl font-bold text-white uppercase italic tracking-tight">Sin torneos próximos</p>
             </>
           )}
@@ -129,22 +120,20 @@ export default function FamilyDashboardHome() {
 
       {/* ACCIONES RÁPIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div onClick={() => navigate("/family-dashboard/pagos")} className="cursor-pointer rounded-[24px] border border-white/5 bg-[#162032]/40 p-6 flex items-center gap-5 hover:bg-[#162032]/80 transition-all group">
-          <div className="h-14 w-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center group-hover:bg-brand-neon group-hover:text-brand-deep transition-all">
+        <div onClick={() => navigate("/family-dashboard/pagos")} className="cursor-pointer rounded-[24px] border border-white/5 bg-[#162032]/40 p-6 flex items-center gap-5 hover:bg-[#162032]/80 transition-colors">
+          <div className="h-14 w-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
             <CreditCard size={24} />
           </div>
           <div>
             <h4 className="text-lg font-black text-white uppercase tracking-tight">Pagos</h4>
-            <p className="text-xs text-slate-400 mt-1">Facturas pendientes y recibos</p>
           </div>
         </div>
-        <div onClick={() => navigate("/family-dashboard/documentos")} className="cursor-pointer rounded-[24px] border border-white/5 bg-[#162032]/40 p-6 flex items-center gap-5 hover:bg-[#162032]/80 transition-all group">
-          <div className="h-14 w-14 rounded-2xl bg-brand-neon/10 border border-brand-neon/20 text-brand-neon flex items-center justify-center group-hover:bg-white group-hover:text-brand-deep transition-all">
+        <div onClick={() => navigate("/family-dashboard/documentos")} className="cursor-pointer rounded-[24px] border border-white/5 bg-[#162032]/40 p-6 flex items-center gap-5 hover:bg-[#162032]/80 transition-colors">
+          <div className="h-14 w-14 rounded-2xl bg-brand-neon/10 border border-brand-neon/20 text-brand-neon flex items-center justify-center">
             <FileText size={24} />
           </div>
           <div>
             <h4 className="text-lg font-black text-white uppercase tracking-tight">Documentos</h4>
-            <p className="text-xs text-slate-400 mt-1">Documentación médica y oficial</p>
           </div>
         </div>
       </div>

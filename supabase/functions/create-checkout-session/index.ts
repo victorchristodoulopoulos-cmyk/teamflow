@@ -1,7 +1,7 @@
-// supabase/functions/create-checkout-session/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
+// 🔥 EL FIX MÁGICO: Importación nativa de NPM
+import Stripe from "npm:stripe@14.14.0"; 
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,71 +9,66 @@ const corsHeaders = {
 };
 
 serve(async (req: Request) => {
-  // 1. Manejo de CORS (Pre-flight)
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    // 2. Inicializar Stripe y Supabase
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      httpClient: Stripe.createFetchHttpClient(),
-    });
+    // 🔥 FIX: Instanciación limpia sin httpClient raro
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "");
     
-    // Cliente de Supabase para verificar al usuario que hace la petición
-    const supabaseClient = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 3. Verificar Usuario Autenticado
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) throw new Error("No autorizado");
-
-    // 4. Obtener el pago_id del cuerpo de la petición
     const { pago_id } = await req.json();
     if (!pago_id) throw new Error("Falta el ID del pago");
 
-    // 5. Buscar los detalles del pago en la base de datos
-    // Usamos el cliente del usuario para asegurar que solo pueda pagar lo que le corresponde
-    const { data: pago, error: pagoError } = await supabaseClient
+    const { data: pago, error: pagoError } = await supabaseAdmin
       .from("pagos")
-      .select("*")
+      .select("*, clubs(stripe_account_id, name)")
       .eq("id", pago_id)
       .single();
 
-    if (pagoError || !pago) throw new Error("Pago no encontrado o sin acceso");
-    if (pago.estado === 'pagado') throw new Error("Este recibo ya ha sido pagado");
+    if (pagoError || !pago) throw new Error("Pago no encontrado");
+    
+    const destinationAccountId = pago.clubs?.stripe_account_id;
+    if (!destinationAccountId) throw new Error("El club no tiene cuenta de cobros vinculada");
 
-    // 6. Crear la Sesión de Checkout en Stripe
+    const FEE_TEAMFLOW = 200; // 2.00€
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: pago.concepto || "Cuota del Club",
-              description: `Pago correspondiente al recibo #${pago.id.slice(0,8)}`,
-            },
-            unit_amount: Math.round(Number(pago.importe) * 100), // Stripe requiere céntimos
+      line_items: [{
+        price_data: {
+          currency: "eur",
+          product_data: {
+            name: pago.concepto || "Cuota del Club",
+            description: `Club: ${pago.clubs?.name}`,
           },
-          quantity: 1,
+          unit_amount: Math.round(Number(pago.importe) * 100),
         },
-      ],
+        quantity: 1,
+      }],
       mode: "payment",
-      // URLs de retorno a tu aplicación local o producción
-      success_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=success`,
-      cancel_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=cancel`,
-      // MUY IMPORTANTE: Pasamos el pago_id en la metadata para que el webhook lo reconozca
+      
+      payment_intent_data: {
+        application_fee_amount: FEE_TEAMFLOW,
+        transfer_data: {
+          destination: destinationAccountId,
+        },
+        metadata: {
+          pago_id: pago.id,
+          club_id: pago.club_id
+        }
+      },
+
       metadata: {
         pago_id: pago.id,
-        user_id: user.id
+        club_id: pago.club_id
       },
+      
+      success_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=success`,
+      cancel_url: `${req.headers.get("origin")}/family-dashboard/pagos?status=cancel`,
     });
-
-    console.log(`✅ Sesión de Stripe creada para el pago ${pago.id}: ${session.url}`);
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -81,7 +76,7 @@ serve(async (req: Request) => {
     });
 
   } catch (error: any) {
-    console.error(`❌ Error creando sesión de Stripe: ${error.message}`);
+    console.error("LOG ERROR:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 400,

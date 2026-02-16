@@ -75,7 +75,7 @@ export default function ClubDashboardHome() {
     loadDashboard();
   }, []);
 
-  if (loading) return <div className="p-10 text-brand-neon font-mono animate-pulse uppercase font-black tracking-widest">Cargando Cuartel General...</div>;
+  if (loading) return <div className="p-10 text-brand-neon font-mono animate-pulse uppercase font-black tracking-widest">Cargando Alojamiento...</div>;
 
   const financeProgress = finance.expected > 0 ? Math.round((finance.collected / finance.expected) * 100) : 0;
 

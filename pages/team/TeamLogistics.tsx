@@ -63,11 +63,11 @@ export default function TeamLogistics() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
         
         {/* ==========================================
-            🏨 MÓDULO ALOJAMIENTO (CUARTEL GENERAL)
+            🏨 MÓDULO ALOJAMIENTO (Alojamiento)
             ========================================== */}
         <div className="flex flex-col h-full">
           <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span> Cuartel General
+            <span className="w-2 h-2 rounded-full bg-blue-500"></span> Alojamiento
           </h2>
           
           {hotel ? (

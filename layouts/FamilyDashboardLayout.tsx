@@ -88,7 +88,9 @@ export default function FamilyDashboardLayout() {
       >
         <StickyChildSelector />
         
-        <div className="animate-in fade-in duration-500">
+        {/* CORRECCIÓN: Quitamos animate-in que a veces mete zoom, 
+            y usamos una transición de opacidad simple que no pesa en móvil */}
+        <div className="md:animate-in md:fade-in md:duration-500">
            <Outlet />
         </div>
       </PortalLayout>

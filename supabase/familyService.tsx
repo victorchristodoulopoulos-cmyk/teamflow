@@ -4,7 +4,7 @@ export interface EnrollmentData {
   id: string;
   torneo_id: string;
   team_id: string;
-  club_id: string; // 🚨 AÑADIDO: Vital para que la logística encuentre el hotel
+  club_id: string;
   status: string;
   torneos: { 
     id: string; 
@@ -12,11 +12,12 @@ export interface EnrollmentData {
     ciudad: string; 
     fecha: string; 
   };
-  clubs: {      // 🚨 AÑADIDO: Para que el escudo no falle nunca
+  clubs: {      
     id: string;
     name: string;
     logo_path: string;
   } | null;
+  descuento?: number; // Añadido para que coincida con el Context
 }
 
 export interface PaymentData {
@@ -27,6 +28,10 @@ export interface PaymentData {
   estado: string;
   fecha_vencimiento: string;
   created_at: string;
+  paid_at?: string; // 🔥 VITAL para el historial
+  stripe_status?: string; // 🔥 VITAL para saber si es SEPA
+  metodo_pago?: string;
+  metodo?: string;
 }
 
 export async function getChildFullContext(playerId: string) {
@@ -39,6 +44,7 @@ export async function getChildFullContext(playerId: string) {
       team_id, 
       club_id, 
       status,
+      descuento,
       torneos (id, name, ciudad, fecha),
       clubs (id, name, logo_path)
     `)
@@ -48,10 +54,10 @@ export async function getChildFullContext(playerId: string) {
     console.error("Error fetching enrollments:", enrollError);
   }
 
-  // 2. Obtenemos pagos
+  // 2. Obtenemos pagos 🔥 AMPLIAMOS EL SELECT PARA TRAER TODO LO DE STRIPE
   const { data: payments, error: payError } = await supabase
     .from("pagos")
-    .select("*")
+    .select("id, torneo_id, concepto, importe, estado, fecha_vencimiento, created_at, paid_at, stripe_status, metodo_pago, metodo")
     .eq("player_id", playerId);
 
   if (payError) {
@@ -59,7 +65,6 @@ export async function getChildFullContext(playerId: string) {
   }
 
   // El club activo es el de su inscripción más reciente (o primera de la lista)
-  // Hacemos un cast manual si es necesario, pero el select ya trae la estructura
   const activeClub = enrollments && enrollments.length > 0 ? enrollments[0].clubs : null;
 
   return {

@@ -4,7 +4,7 @@ import { getMyClubContext } from "../../supabase/clubService";
 import { getClubActiveTournaments, TournamentConfig, applyDiscountToPlayer } from "../../supabase/clubTournamentService";
 import { 
   CreditCard, Search, Filter, TrendingUp, AlertCircle, 
-  CheckCircle2, DollarSign, ArrowDownToLine, Clock, Wallet, Tag, X, Save, Loader2, Edit3, Banknote, HelpCircle
+  CheckCircle2, DollarSign, ArrowDownToLine, Clock, Wallet, Tag, X, Save, Loader2, Edit3, Banknote, HelpCircle, RefreshCw
 } from "lucide-react";
 
 type Payment = {
@@ -26,7 +26,7 @@ type PlayerFinanceRow = {
   totalPending: number;
   descuento: number;
   isUpToDate: boolean;
-  hasPlanGenerated: boolean; // Nuevo: Para saber si ya eligió cuotas
+  hasPlanGenerated: boolean;
 };
 
 export default function ClubPayments() {
@@ -40,6 +40,11 @@ export default function ClubPayments() {
   
   const [kpis, setKpis] = useState({ totalExpected: 0, totalCollected: 0, totalDebt: 0 });
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'name', direction: 'asc' });
+
+  // 🏦 ESTADOS STRIPE CONNECT
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [stripeOnboardingComplete, setStripeOnboardingComplete] = useState<boolean>(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   // Modales
   const [discountModal, setDiscountModal] = useState<{open: boolean, player: PlayerFinanceRow | null}>({open: false, player: null});
@@ -57,6 +62,33 @@ export default function ClubPayments() {
     try {
       const { club_id } = await getMyClubContext();
       setClubId(club_id);
+
+      // Traer estado de Stripe desde la base de datos
+      const { data: clubData } = await supabase
+        .from('clubs')
+        .select('stripe_account_id, stripe_onboarding_complete')
+        .eq('id', club_id)
+        .single();
+
+      let accountId = null;
+      let isComplete = false;
+
+      if (clubData) {
+        accountId = clubData.stripe_account_id;
+        isComplete = clubData.stripe_onboarding_complete || false;
+        
+        setStripeAccountId(accountId);
+        setStripeOnboardingComplete(isComplete);
+      }
+
+      // Comprobación inicial si volvemos de Stripe
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('onboarding') === 'success' && accountId && !isComplete) {
+        await verifyStripeStatus(club_id);
+        // Limpiamos la URL después de comprobar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       const activeTournaments = await getClubActiveTournaments(club_id);
       setTournaments(activeTournaments);
       if (activeTournaments.length > 0) setSelectedTorneoId(activeTournaments[0].torneo_id);
@@ -64,10 +96,28 @@ export default function ClubPayments() {
     } catch (e) { setLoading(false); }
   };
 
+  // 👇 NUEVA FUNCIÓN: Verifica el estado real en Stripe
+  const verifyStripeStatus = async (currentClubId: string) => {
+    try {
+      const { data: statusData, error: statusError } = await supabase.functions.invoke('check-stripe-status', {
+        body: { club_id: currentClubId }
+      });
+
+      if (statusData?.complete) {
+        setStripeOnboardingComplete(true);
+        await supabase.from('clubs').update({ stripe_onboarding_complete: true }).eq('id', currentClubId);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error verificando estado:", error);
+      return false;
+    }
+  };
+
   const fetchFinanceData = async (club_id: string, torneo_id: string) => {
     setLoading(true);
     try {
-      // 1. Traer roster y PRECIO del torneo para este club
       const { data: roster } = await supabase.from('torneo_jugadores')
         .select(`id, player_id, descuento, jugadores (name, surname, dni)`)
         .eq('club_id', club_id).eq('torneo_id', torneo_id);
@@ -84,7 +134,6 @@ export default function ClubPayments() {
 
       const { data: pagos } = await supabase.from('pagos').select('*').eq('club_id', club_id).eq('torneo_id', torneo_id);
 
-      // --- LÓGICA DE COLUMNAS INTELIGENTE ---
       const cuotasSet = new Set<string>();
       let hasMatricula = false;
 
@@ -112,7 +161,6 @@ export default function ClubPayments() {
         const hasPlanGenerated = playerPayments.length > 0;
 
         if (!hasPlanGenerated) {
-          // 🛡️ MÁGIA: Si no tiene plan, la deuda es el PRECIO TOTAL del torneo menos su descuento
           pPending = precioTorneo - (r.descuento || 0);
           expected += precioTorneo;
           debt += pPending;
@@ -197,6 +245,36 @@ export default function ClubPayments() {
     finally { setProcessingPay(false); }
   };
 
+  // 👇 LÓGICA MEJORADA DE STRIPE
+  const handleStripeConnect = async () => {
+    setConnectingStripe(true);
+    try {
+      // 1. Si ya tenemos ID, primero comprobamos si ya está listo por si es un desfase de sincronización
+      if (stripeAccountId) {
+        const isReady = await verifyStripeStatus(clubId);
+        if (isReady) {
+          setConnectingStripe(false);
+          return; // ¡Bingo! Estaba listo, se pone verde y no hacemos nada más.
+        }
+      }
+
+      // 2. Si no estaba listo o no tenía ID, generamos el link y le mandamos a Stripe
+      const { data, error } = await supabase.functions.invoke('stripe-onboarding', {
+        body: { club_id: clubId }
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error("Error conectando a Stripe:", error);
+      alert("Hubo un error al generar el enlace de Stripe.");
+    } finally {
+      setConnectingStripe(false);
+    }
+  };
+
   const processedData = useMemo(() => {
     let filtered = financialData.filter(row => `${row.name} ${row.surname}`.toLowerCase().includes(searchTerm.toLowerCase()));
     filtered.sort((a, b) => {
@@ -229,13 +307,44 @@ export default function ClubPayments() {
           <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Gestión de cobros manuales y descuentos</p>
         </div>
         
-        <select 
-          className="w-full sm:w-64 bg-[#0D1B2A] border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-xs uppercase tracking-widest focus:border-brand-neon outline-none"
-          value={selectedTorneoId}
-          onChange={(e) => setSelectedTorneoId(e.target.value)}
-        >
-          {tournaments.map(t => <option key={t.id} value={t.torneo_id}>{t.torneos?.name}</option>)}
-        </select>
+        {/* 👇 ZONA DE ACCIONES (Stripe + Filtro) */}
+        <div className="flex flex-col sm:flex-row w-full xl:w-auto gap-4 items-stretch sm:items-center">
+          
+          {/* BOTÓN MÁGICO DE STRIPE */}
+          {!stripeAccountId ? (
+            <button 
+              onClick={handleStripeConnect} 
+              disabled={connectingStripe} 
+              className="px-5 py-3 rounded-xl bg-brand-neon text-[#0D1B2A] font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-white transition-all shadow-[0_0_20px_rgba(201,255,47,0.3)] shrink-0"
+            >
+              {connectingStripe ? <Loader2 className="animate-spin" size={16}/> : <CreditCard size={16}/>}
+              Activar Cobros
+            </button>
+          ) : !stripeOnboardingComplete ? (
+            <button 
+              onClick={handleStripeConnect} 
+              disabled={connectingStripe} 
+              className="px-5 py-3 rounded-xl bg-orange-500 text-black font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-orange-400 transition-all shadow-[0_0_20px_rgba(249,115,22,0.3)] shrink-0"
+            >
+               {connectingStripe ? <RefreshCw className="animate-spin" size={16}/> : <AlertCircle size={16}/>}
+               {connectingStripe ? "Sincronizando..." : "Finalizar Registro Stripe"}
+            </button>
+          ) : (
+             <div className="px-5 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 shrink-0 cursor-default">
+               <CheckCircle2 size={16}/>
+               Cobros Activos
+             </div>
+          )}
+
+          {/* SELECTOR DE TORNEO */}
+          <select 
+            className="w-full sm:w-64 bg-[#0D1B2A] border border-white/10 rounded-xl px-4 py-3 text-white font-bold text-xs uppercase tracking-widest focus:border-brand-neon outline-none"
+            value={selectedTorneoId}
+            onChange={(e) => setSelectedTorneoId(e.target.value)}
+          >
+            {tournaments.map(t => <option key={t.id} value={t.torneo_id}>{t.torneos?.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -302,7 +411,6 @@ export default function ClubPayments() {
                   {dynamicColumns.map(col => {
                     const p = row.payments[col];
                     
-                    // 🛡️ UI: Caso donde no ha elegido plan todavía
                     if (!row.hasPlanGenerated) {
                         return (
                             <td key={col} className="px-4 py-4 text-center">

@@ -522,10 +522,10 @@ export default function ClubTournamentDetail() {
             ) : (
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
                  
-                 {/* 🏨 CUARTEL GENERAL (HOTEL) */}
+                 {/* 🏨 Alojamiento (HOTEL) */}
                  <div className="flex flex-col h-full">
                     <h3 className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-blue-500"></span> Cuartel General
+                      <span className="w-3 h-3 rounded-full bg-blue-500"></span> Alojamiento
                     </h3>
                     
                     {logisticsData?.hotel ? (

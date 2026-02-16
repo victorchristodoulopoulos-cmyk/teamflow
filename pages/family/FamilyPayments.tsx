@@ -4,8 +4,8 @@ import { supabase } from "../../supabase/supabaseClient";
 import { getPendingEnrollmentsForFinance, generateInstallments } from "../../supabase/clubTournamentService";
 import { 
   CreditCard, CheckCircle, Calendar, Trophy, Loader2, User, 
-  Shield, AlertCircle, Zap, Tag 
-} from "lucide-react";
+  Shield, AlertCircle, Zap, Tag, Landmark, X, Clock 
+} from "lucide-react"; // 🔥 AÑADIDO: Clock para el estado procesando
 
 interface EnrichedPayment {
   id: string;
@@ -42,6 +42,10 @@ export default function FamilyPayments() {
   // Usamos el caché si existe para que la carga inicial sea instantánea
   const [allPendingConfigs, setAllPendingConfigs] = useState<any[]>(cachedPendingConfigs || []);
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
+
+  // 🏦 ESTADOS PARA TRANSFERENCIA MANUAL
+  const [transferModal, setTransferModal] = useState<{open: boolean, payment: any}>({open: false, payment: null});
+  const [processingTransfer, setProcessingTransfer] = useState(false);
 
   const isGlobalView = !activeChildId;
 
@@ -142,7 +146,10 @@ export default function FamilyPayments() {
         };
       });
 
-      const childPending = enriched.filter(p => p.estado?.toLowerCase() === 'pendiente');
+      // 🔥 FIX: Añadimos 'procesando' para calcular la deuda y mostrarlo en pendientes
+      const childPending = enriched.filter(p => 
+        ['pendiente', 'pendiente_verificacion', 'procesando'].includes(p.estado?.toLowerCase())
+      );
       const childTotal = childPending.reduce((acc, curr) => acc + Number(curr.importe || 0), 0);
 
       debtByChild.push({ id: player.id, name: player.name, total: parseFloat(childTotal.toFixed(2)) });
@@ -158,7 +165,8 @@ export default function FamilyPayments() {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     
     const pending = filtered
-      .filter(p => p.estado?.toLowerCase() === 'pendiente')
+      // 🔥 FIX: Permitimos que 'procesando' salga en la lista principal
+      .filter(p => ['pendiente', 'pendiente_verificacion', 'procesando'].includes(p.estado?.toLowerCase()))
       .sort((a, b) => {
         const dateA = a.fecha_vencimiento ? new Date(a.fecha_vencimiento).getTime() : 0;
         const dateB = b.fecha_vencimiento ? new Date(b.fecha_vencimiento).getTime() : 0;
@@ -178,6 +186,29 @@ export default function FamilyPayments() {
       if (data?.url) window.location.href = data.url;
     } catch (err) { alert("Error iniciando Stripe."); }
     finally { setPayingId(null); }
+  };
+
+  // 👇 FUNCIÓN PARA CONFIRMAR TRANSFERENCIA MANUAL
+  const handleConfirmTransfer = async () => {
+    if (!transferModal.payment) return;
+    setProcessingTransfer(true);
+    try {
+      // Actualizamos el pago a "Pendiente de Verificación" por parte del club
+      const { error } = await supabase.from('pagos')
+        .update({ 
+          estado: 'pendiente_verificacion',
+          metodo_pago: 'Transferencia'
+        })
+        .eq('id', transferModal.payment.id);
+
+      if (error) throw error;
+      if (reloadData) await reloadData();
+      setTransferModal({open: false, payment: null});
+    } catch (e) {
+      alert("Error al notificar la transferencia");
+    } finally {
+      setProcessingTransfer(false);
+    }
   };
 
   if (appLoading) return (
@@ -328,7 +359,15 @@ export default function FamilyPayments() {
         {/* RECIBOS */}
         <div className={isGlobalView ? "grid grid-cols-1 xl:grid-cols-2 gap-3 md:gap-4" : "grid gap-3 md:gap-4"}>
           {(filter === 'pending' ? processedData.pending : processedData.history).map((p) => (
-            <PaymentCard key={p.id} payment={p} type={filter} onPay={handlePayment} isProcessing={payingId === p.id} isCompact={isGlobalView} />
+            <PaymentCard 
+              key={p.id} 
+              payment={p} 
+              type={filter} 
+              onPay={handlePayment} 
+              onTransfer={() => setTransferModal({open: true, payment: p})}
+              isProcessing={payingId === p.id} 
+              isCompact={isGlobalView} 
+            />
           ))}
 
           {((filter === 'pending' && processedData.pending.length === 0) || (filter === 'history' && processedData.history.length === 0)) && (
@@ -341,48 +380,106 @@ export default function FamilyPayments() {
           )}
         </div>
       </div>
+
+      {/* 4. MODAL DE TRANSFERENCIA */}
+      {transferModal.open && transferModal.payment && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#162032] border border-blue-500/20 rounded-[32px] w-full max-w-md p-8 shadow-2xl relative">
+             <button onClick={() => setTransferModal({open: false, payment: null})} className="absolute top-6 right-6 text-slate-500 hover:text-white"><X size={20}/></button>
+             
+             <div className="flex items-center gap-3 mb-4">
+               <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-400">
+                 <Landmark size={24} />
+               </div>
+               <h3 className="text-2xl font-display font-black text-white italic uppercase leading-none">Aviso de Transferencia</h3>
+             </div>
+             
+             <p className="text-sm text-slate-400 mb-6">
+               Para pagar por transferencia, envía <strong className="text-white">{transferModal.payment.importe}€</strong> a la cuenta del club. El administrador validará el pago al ver el ingreso.
+             </p>
+
+             <div className="space-y-4 mb-8 p-5 bg-[#0D1B2A] border border-white/5 rounded-2xl">
+                <div>
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Concepto de Transferencia</p>
+                  <p className="text-sm font-bold text-white uppercase">{transferModal.payment.childName} - {transferModal.payment.concepto}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">IBAN del Club (Prueba)</p>
+                  <p className="text-lg font-mono text-brand-neon tracking-wider">ES91 2100 0000 0000 0000 0000</p>
+                </div>
+             </div>
+
+             <button 
+               onClick={handleConfirmTransfer} 
+               disabled={processingTransfer} 
+               className="w-full py-4 bg-blue-500 text-white font-black uppercase tracking-widest text-xs rounded-xl hover:bg-blue-400 transition-all flex items-center justify-center gap-2"
+             >
+                {processingTransfer ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle size={18}/>}
+                Notificar Transferencia Realizada
+             </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // COMPONENTE TARJETA DE PAGO (ADAPTATIVO)
-function PaymentCard({ payment, type, onPay, isProcessing, isCompact }: any) {
+function PaymentCard({ payment, type, onPay, onTransfer, isProcessing, isCompact }: any) {
   const isPending = type === 'pending';
   const isMatricula = payment.concepto.toLowerCase().includes('matrícula') || payment.concepto.toLowerCase().includes('reserva');
   
-  const containerClasses = isPending
-    ? isMatricula
-      ? "bg-orange-500/10 border-orange-500/30 shadow-lg shadow-orange-500/5"
-      : "bg-[#162032]/80 border-white/10 hover:border-brand-neon/30"
-    : "bg-[#162032]/40 border-white/5 opacity-80";
+  // 🔥 FIX: Variables para saber si está en verificación o si Stripe está cobrando el SEPA
+  const isPendingVerification = payment.estado?.toLowerCase() === 'pendiente_verificacion';
+  const isProcessingBank = payment.estado?.toLowerCase() === 'procesando';
+
+  let containerClasses = "bg-[#162032]/40 border-white/5 opacity-80";
+  if (isPending) {
+    if (isPendingVerification) {
+      containerClasses = "bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/5 opacity-100";
+    } else if (isProcessingBank) {
+      // Color distintivo para SEPA en camino
+      containerClasses = "bg-yellow-500/10 border-yellow-500/30 shadow-lg shadow-yellow-500/5 opacity-100";
+    } else if (isMatricula) {
+      containerClasses = "bg-orange-500/10 border-orange-500/30 shadow-lg shadow-orange-500/5 opacity-100";
+    } else {
+      containerClasses = "bg-[#162032]/80 border-white/10 hover:border-brand-neon/30 opacity-100";
+    }
+  }
 
   const layoutClasses = isCompact 
     ? "flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 md:gap-6" 
     : "flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6";
 
   const actionLayoutClasses = isCompact 
-    ? "flex items-center justify-between 2xl:justify-end gap-4 md:gap-6 border-t 2xl:border-t-0 border-white/5 pt-4 md:pt-5 2xl:pt-0"
-    : "flex items-center justify-between md:justify-end gap-4 md:gap-8 border-t md:border-t-0 border-white/5 pt-4 md:pt-5 md:pt-0";
+    ? "flex flex-col sm:flex-row items-center justify-between 2xl:justify-end gap-3 md:gap-4 border-t 2xl:border-t-0 border-white/5 pt-4 md:pt-5 2xl:pt-0 w-full 2xl:w-auto"
+    : "flex flex-col sm:flex-row items-center justify-between md:justify-end gap-3 md:gap-4 border-t md:border-t-0 border-white/5 pt-4 md:pt-5 md:pt-0 w-full md:w-auto";
 
   return (
     <div className={`relative overflow-hidden border rounded-[20px] md:rounded-[28px] p-4 md:p-6 transition-all group ${layoutClasses} ${containerClasses}`}>
-      <div className="flex items-start gap-3 md:gap-5">
+      <div className="flex items-start gap-3 md:gap-5 w-full">
         <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 border transition-transform duration-500 group-hover:scale-105 ${
-          isMatricula && isPending 
-            ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' 
-            : 'bg-white/5 border-white/10 text-slate-500'
+          isPendingVerification ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' :
+          isProcessingBank ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400' :
+          isMatricula && isPending ? 'bg-orange-500/20 border-orange-500/30 text-orange-400' : 
+          'bg-white/5 border-white/10 text-slate-500'
         }`}>
             {payment.clubLogo ? (
               <img src={payment.clubLogo} className="w-6 h-6 md:w-8 md:h-8 object-contain" alt="Club" />
             ) : (
-              isMatricula && isPending ? <Zap size={20} className="md:w-6 md:h-6 animate-pulse" /> : <Shield size={20} className="md:w-6 md:h-6" />
+              isPendingVerification ? <Landmark size={20} className="md:w-6 md:h-6" /> :
+              isProcessingBank ? <Clock size={20} className="md:w-6 md:h-6 animate-pulse" /> :
+              isMatricula && isPending ? <Zap size={20} className="md:w-6 md:h-6 animate-pulse" /> : 
+              <Shield size={20} className="md:w-6 md:h-6" />
             )}
         </div>
 
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 mb-0.5 md:mb-1">
             <p className="text-[9px] md:text-[10px] text-brand-neon font-black uppercase tracking-widest italic">{payment.childName}</p>
-            {isMatricula && <span className="px-1.5 md:px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-[7px] md:text-[8px] font-black uppercase tracking-widest">Reserva</span>}
+            {isMatricula && !isProcessingBank && !isPendingVerification && <span className="px-1.5 md:px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-[7px] md:text-[8px] font-black uppercase tracking-widest">Reserva</span>}
+            {isPendingVerification && <span className="px-1.5 md:px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[7px] md:text-[8px] font-black uppercase tracking-widest">Verificando...</span>}
+            {isProcessingBank && <span className="px-1.5 md:px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[7px] md:text-[8px] font-black uppercase tracking-widest">Procesando Banco</span>}
           </div>
           <h4 className="text-lg md:text-xl font-bold text-white leading-none mb-1.5 md:mb-2 truncate uppercase tracking-tight">{payment.concepto}</h4>
           <div className="flex flex-col gap-0.5 md:gap-1">
@@ -392,7 +489,7 @@ function PaymentCard({ payment, type, onPay, isProcessing, isCompact }: any) {
                <span className="text-slate-600 shrink-0 mx-1">•</span>
                <span className="text-slate-600 truncate">{payment.clubName}</span>
              </span>
-             <span className={`flex items-center gap-1 md:gap-1.5 text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${isMatricula && isPending ? 'text-orange-400' : 'text-slate-500'}`}>
+             <span className={`flex items-center gap-1 md:gap-1.5 text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${isPendingVerification ? 'text-blue-400' : isProcessingBank ? 'text-yellow-400' : isMatricula && isPending ? 'text-orange-400' : 'text-slate-500'}`}>
                <Calendar size={10} className="md:w-3 md:h-3"/> {isPending ? `VENCE: ${payment.fecha_vencimiento || "---"}` : `PAGADO: ${new Date(payment.created_at).toLocaleDateString()}`}
              </span>
           </div>
@@ -400,25 +497,44 @@ function PaymentCard({ payment, type, onPay, isProcessing, isCompact }: any) {
       </div>
 
       <div className={actionLayoutClasses}>
-         <div className="text-left md:text-right">
-           <p className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-0.5 md:mb-1 ${isMatricula ? 'text-orange-400/80' : 'text-slate-600'}`}>Importe</p>
+         <div className="text-left sm:text-right w-full sm:w-auto flex flex-row sm:flex-col justify-between sm:justify-start items-center sm:items-end">
+           <p className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-0.5 md:mb-1 ${isPendingVerification ? 'text-blue-400/80' : isProcessingBank ? 'text-yellow-400/80' : isMatricula ? 'text-orange-400/80' : 'text-slate-600'}`}>Importe</p>
            <p className="text-xl md:text-2xl font-black text-white italic tracking-tighter">{Number(payment.importe).toFixed(2)}€</p>
          </div>
 
          {isPending ? (
-           <button 
-             onClick={() => onPay?.(payment.id)} 
-             disabled={isProcessing}
-             className={`${
-               isMatricula 
-                ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.3)]' 
-                : 'bg-brand-neon hover:bg-white text-brand-deep shadow-[0_0_20px_rgba(var(--brand-neon),0.2)]'
-             } px-6 md:px-8 h-10 md:h-14 rounded-xl md:rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest transition-all flex items-center gap-2 md:gap-3 active:scale-95 shrink-0`}
-           >
-             {isProcessing ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} className="md:w-4 md:h-4" />} Pagar
-           </button>
+           isPendingVerification ? (
+             <div className="px-4 py-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl font-black uppercase text-[10px] tracking-widest text-center shrink-0 w-full sm:w-auto">
+               En Verificación
+             </div>
+           ) : isProcessingBank ? (
+             <div className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-xl font-black uppercase text-[10px] tracking-widest text-center shrink-0 w-full sm:w-auto flex items-center justify-center gap-2">
+               <Clock size={14} className="animate-spin-slow" /> Procesando
+             </div>
+           ) : (
+             <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => onTransfer?.()} 
+                  disabled={isProcessing}
+                  className="bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300 px-4 md:px-5 h-10 md:h-14 rounded-xl md:rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                >
+                  <Landmark size={14} /> <span className="hidden xl:inline">Transferencia</span><span className="inline xl:hidden">Transf.</span>
+                </button>
+                <button 
+                  onClick={() => onPay?.(payment.id)} 
+                  disabled={isProcessing}
+                  className={`${
+                    isMatricula 
+                      ? 'bg-orange-500 hover:bg-orange-400 text-white shadow-[0_0_20px_rgba(249,115,22,0.3)]' 
+                      : 'bg-brand-neon hover:bg-white text-brand-deep shadow-[0_0_20px_rgba(var(--brand-neon),0.2)]'
+                  } px-5 md:px-6 h-10 md:h-14 rounded-xl md:rounded-2xl font-black uppercase text-[10px] md:text-xs tracking-widest transition-all flex items-center justify-center gap-2 active:scale-95 flex-1 sm:flex-none`}
+                >
+                  {isProcessing ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Pagar
+                </button>
+             </div>
+           )
          ) : (
-           <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center text-brand-neon shrink-0">
+           <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center text-brand-neon shrink-0 ml-auto sm:ml-0">
              <CheckCircle size={20} className="md:w-6 md:h-6" />
            </div>
          )}
