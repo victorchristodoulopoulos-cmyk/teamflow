@@ -59,7 +59,7 @@ export default function TournamentClubs() {
   };
 
   const handleAceptar = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Evita que se abra la Biblia al pulsar el botón
+    e.stopPropagation(); 
     if (!window.confirm("¿Validar este club y enviarle el acceso?")) return;
     setProcessingId(id);
     const { error } = await supabase
@@ -74,7 +74,7 @@ export default function TournamentClubs() {
   };
 
   const handleEliminar = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Evita que se abra la Biblia al pulsar el botón
+    e.stopPropagation(); 
     if (!window.confirm("¿Estás seguro de ELIMINAR esta inscripción permanentemente?")) return;
     setProcessingId(id);
     const { error } = await supabase
@@ -94,9 +94,8 @@ export default function TournamentClubs() {
   );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 max-w-[1600px] mx-auto">
       
-      {/* HEADER ÉPICO */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 bg-[#162032] border border-white/5 p-8 md:p-10 rounded-[40px] relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="relative z-10">
@@ -137,7 +136,6 @@ export default function TournamentClubs() {
         </div>
       </div>
 
-      {/* ZONA DE DATOS (TABLA CLICABLE) */}
       {loading ? (
         <div className="h-[400px] flex flex-col items-center justify-center border border-white/5 rounded-[40px] bg-[#162032]/50">
           <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -165,90 +163,96 @@ export default function TournamentClubs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {filteredClubs.map((club) => (
-                  <tr 
-                    key={club.id} 
-                    onClick={() => navigate(`/tournament-dashboard/clubs/${club.id}`)}
-                    className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
-                  >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-slate-400 group-hover:border-amber-500/50 group-hover:text-amber-500 transition-colors">
-                          <Building2 size={20} />
+                {filteredClubs.map((club) => {
+                  let printCats = [];
+                  if (Array.isArray(club.categorias)) printCats = club.categorias;
+                  else if (typeof club.categorias === 'string') {
+                    try { printCats = JSON.parse(club.categorias); } catch(e) {}
+                  }
+
+                  return (
+                    <tr 
+                      key={club.id} 
+                      onClick={() => navigate(`/tournament-dashboard/clubs/${club.id}`)}
+                      className="hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                    >
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-slate-400 group-hover:border-amber-500/50 group-hover:text-amber-500 transition-colors">
+                            <Building2 size={20} />
+                          </div>
+                          <div>
+                            <p className="text-base font-bold text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{club.nombre_club}</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">
+                              Ingreso: {new Date(club.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-base font-bold text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{club.nombre_club}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">
-                            Ingreso: {new Date(club.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="space-y-1.5">
+                          <p className="text-xs text-slate-300 flex items-center gap-2">
+                            <Mail size={12} className="text-amber-500" /> {club.email_responsable}
+                          </p>
+                          <p className="text-xs text-slate-400 flex items-center gap-2">
+                            <Phone size={12} className="text-slate-500" /> {club.telefono || "Sin teléfono"}
                           </p>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="space-y-1.5">
-                        <p className="text-xs text-slate-300 flex items-center gap-2">
-                          <Mail size={12} className="text-amber-500" /> {club.email_responsable}
-                        </p>
-                        <p className="text-xs text-slate-400 flex items-center gap-2">
-                          <Phone size={12} className="text-slate-500" /> {club.telefono || "Sin teléfono"}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-wrap gap-2 max-w-[200px]">
-                        {club.categorias && club.categorias.length > 0 ? (
-                          club.categorias.map((cat: string) => (
-                            <span key={cat} className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-500 text-[9px] font-black border border-amber-500/20">
-                              {cat}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-600 italic">No especificadas</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      {club.estado === 'pendiente' ? (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-widest">
-                          <Clock size={10} className="animate-pulse" /> Pendiente
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-widest">
-                          <CheckCircle2 size={10} /> Validado
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        
-                        {/* BOTONES DE ACCIÓN RÁPIDA (Solo visibles al pasar el ratón para limpiar la interfaz) */}
-                        <div className="flex items-center gap-2 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity mr-4">
-                          {club.estado === 'pendiente' && (
-                            <button 
-                              onClick={(e) => handleAceptar(e, club.id)}
-                              disabled={processingId === club.id}
-                              title="Validar Club"
-                              className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center hover:bg-amber-500 hover:text-brand-deep transition-all disabled:opacity-50"
-                            >
-                              <UserCheck size={18} />
-                            </button>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className="flex flex-wrap gap-2 max-w-[200px]">
+                          {printCats.length > 0 ? (
+                            printCats.map((cat: string) => (
+                              <span key={cat} className="px-2.5 py-1 rounded bg-amber-500/10 text-amber-500 text-[9px] font-black border border-amber-500/20">
+                                {cat}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-600 italic">No especificadas</span>
                           )}
-                          <button 
-                            onClick={(e) => handleEliminar(e, club.id)}
-                            disabled={processingId === club.id}
-                            title="Eliminar Inscripción"
-                            className="w-10 h-10 rounded-xl bg-red-500/5 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
-                          >
-                            <Trash2 size={18} />
-                          </button>
                         </div>
-                        
-                        {/* FLECHA DE NAVEGACIÓN (Indica que puedes clicar en la fila) */}
-                        <ChevronRight className="text-slate-600 group-hover:text-amber-500 transition-colors" size={20} />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-8 py-6">
+                        {club.estado === 'pendiente' ? (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-widest">
+                            <Clock size={10} className="animate-pulse" /> Pendiente
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[9px] font-black uppercase tracking-widest">
+                            <CheckCircle2 size={10} /> Validado
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          
+                          <div className="flex items-center gap-2 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity mr-4">
+                            {club.estado === 'pendiente' && (
+                              <button 
+                                onClick={(e) => handleAceptar(e, club.id)}
+                                disabled={processingId === club.id}
+                                title="Validar Club"
+                                className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center hover:bg-amber-500 hover:text-brand-deep transition-all disabled:opacity-50"
+                              >
+                                <UserCheck size={18} />
+                              </button>
+                            )}
+                            <button 
+                              onClick={(e) => handleEliminar(e, club.id)}
+                              disabled={processingId === club.id}
+                              title="Eliminar Inscripción"
+                              className="w-10 h-10 rounded-xl bg-red-500/5 border border-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                          
+                          <ChevronRight className="text-slate-600 group-hover:text-amber-500 transition-colors" size={20} />
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

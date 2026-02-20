@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, UserRound, Building2, Trophy, ArrowRight } from "lucide-react";
+import { Users, UserRound, Building2, ArrowRight } from "lucide-react";
 import Logo from "../components/branding/Logo";
 
 type PortalCard = {
@@ -15,6 +15,7 @@ type PortalCard = {
   accent2Rgb: string; 
 };
 
+// 🔥 Eliminamos "tournament" temporalmente y dejamos 3 cartas
 const CARDS: PortalCard[] = [
   {
     key: "team",
@@ -48,18 +49,7 @@ const CARDS: PortalCard[] = [
     imageUrl: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1600&q=80",
     accentRgb: "56 189 248", // Sky blue
     accent2Rgb: "34 211 238",
-  },
-  {
-    key: "tournament",
-    title: "TOURNEY",
-    kicker: "PORTAL ORGANIZADOR",
-    description: "Gestión maestra de competiciones: calendarios, sedes, acreditaciones y control de cobros globales.",
-    to: "/login/tournament",
-    Icon: Trophy,
-    imageUrl: "https://images.unsplash.com/photo-1518605368461-1e12d1b8004b?auto=format&fit=crop&w=1600&q=80",
-    accentRgb: "251 191 36", // Oro/Ámbar
-    accent2Rgb: "245 158 11",
-  },
+  }
 ];
 
 function TopRibbon() {
@@ -169,9 +159,11 @@ const LoginSelector: React.FC = () => {
       {/* Dynamic Background Glows */}
       <div className="pointer-events-none absolute -left-40 top-1/3 h-[520px] w-[520px] bg-[rgba(180,255,60,0.15)] blur-[140px]" />
       <div className="pointer-events-none absolute right-[-220px] top-1/4 h-[560px] w-[560px] bg-[rgba(168,85,247,0.12)] blur-[150px]" />
-      <div className="pointer-events-none absolute bottom-[-240px] left-1/2 h-[640px] w-[640px] -translate-x-1/2 bg-[rgba(251,191,36,0.1)] blur-[170px]" />
+      <div className="pointer-events-none absolute bottom-[-240px] left-1/2 h-[640px] w-[640px] -translate-x-1/2 bg-[rgba(56,189,248,0.1)] blur-[170px]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px] flex-1 flex flex-col px-6 py-6 md:block md:py-12 lg:py-16">
+      {/* 🔥 FIX: Cambiamos el Grid a 3 columnas (md:grid-cols-3) y limitamos el ancho máximo a 1200px para que quede centrado y bonito */}
+      <div className="relative z-10 mx-auto w-full max-w-[1200px] flex-1 flex flex-col px-6 py-6 md:block md:py-12 lg:py-16">
+        
         {/* Header */}
         <div className="text-center flex-none mb-8 md:mb-12">
           <div className="inline-flex items-center justify-center scale-90 md:scale-100">
@@ -182,12 +174,8 @@ const LoginSelector: React.FC = () => {
           </p>
         </div>
 
-        {/* Responsive Grid System:
-            1 col on mobile
-            2 cols on tablet/small laptops
-            4 cols on large screens 
-        */}
-        <div className="flex-1 flex flex-col gap-4 md:grid md:grid-cols-2 xl:grid-cols-4 md:gap-6 min-h-0">
+        {/* Responsive Grid System: 3 Columnas centradas */}
+        <div className="flex-1 flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6 min-h-0">
           {CARDS.map((c) => (
             <PortalCardView key={c.key} card={c} onClick={() => navigate(c.to)} />
           ))}

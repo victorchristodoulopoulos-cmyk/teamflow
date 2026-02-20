@@ -261,3 +261,19 @@ export async function applyDiscountToPlayer(enrollmentId: string, playerId: stri
 
   return true;
 }
+
+export async function updateClubPaymentConfig(clubId: string, admiteTarjeta: boolean, admiteTransferencia: boolean) {
+  const { error } = await supabase
+    .from('clubs')
+    .update({ 
+      admite_tarjeta: admiteTarjeta, 
+      admite_transferencia: admiteTransferencia 
+    })
+    .eq('id', clubId);
+
+  if (error) {
+    console.error("Error actualizando config del club:", error);
+    throw error;
+  }
+  return true;
+}

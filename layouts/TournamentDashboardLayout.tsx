@@ -4,7 +4,7 @@ import { supabase } from "../supabase/supabaseClient";
 import Logo from "../components/branding/Logo";
 import { 
   LayoutDashboard, Shield, LogOut, Users, Trophy, 
-  Building2, MapPin, Wallet, Settings 
+  Building2, MapPin, Wallet, Settings, Map, Cpu // 🔥 AÑADIDO: Icono CPU
 } from "lucide-react";
 
 export default function TournamentDashboardLayout() {
@@ -35,6 +35,11 @@ export default function TournamentDashboardLayout() {
     { to: "/tournament-dashboard", icon: LayoutDashboard, label: "Dashboard", end: true },
     { to: "/tournament-dashboard/clubs", icon: Building2, label: "Clubes & Equipos" },
     { to: "/tournament-dashboard/categorias", icon: Trophy, label: "Categorías" },
+    
+    // 🔥 NUEVO BOTÓN: EL CEREBRO LOGÍSTICO
+    { to: "/tournament-dashboard/scheduler", icon: Cpu, label: "Calendario IA" },
+
+    { to: "/tournament-dashboard/sedes", icon: Map, label: "Sedes y Horarios" },
     { to: "/tournament-dashboard/alojamientos", icon: MapPin, label: "Alojamientos" },
     { to: "/tournament-dashboard/pagos", icon: Wallet, label: "Precios y Pagos" },
   ];

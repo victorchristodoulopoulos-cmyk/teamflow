@@ -11,10 +11,11 @@ export default function TournamentClubDetail() {
   const navigate = useNavigate();
   const [club, setClub] = useState<any>(null);
   const [hoteles, setHoteles] = useState<any[]>([]); 
+  const [categoriasOficiales, setCategoriasOficiales] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // 🔥 NUEVO: Estado para guardar la selección antes de confirmar a Supabase
+  // Estado para la selección
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -23,6 +24,7 @@ export default function TournamentClubDetail() {
   }, [inscripcionId]);
 
   const fetchClubDetails = async () => {
+    // 1. Cargar Club
     const { data: clubData, error: clubError } = await supabase
       .from("inscripciones_torneo")
       .select("*")
@@ -32,26 +34,33 @@ export default function TournamentClubDetail() {
     if (clubData) {
       if (!clubData.categorias_confirmadas) clubData.categorias_confirmadas = [];
       setClub(clubData);
-      
-      // 🔥 Llenamos el estado de selección con lo que ya está confirmado en BD
       setSelectedCats(clubData.categorias_confirmadas);
 
-      // AHORA LEEMOS LOS HOTELES DE LA TABLA 'hoteles'
+      // 2. Cargar Hoteles del Torneo
       const { data: hotelesData } = await supabase
         .from("hoteles")
         .select("*")
         .eq("torneo_id", clubData.torneo_id);
       
       if (hotelesData) setHoteles(hotelesData);
+
+      // 3. 🔥 Cargar TODAS las categorías oficiales de este torneo para mostrarlas
+      const { data: catData } = await supabase
+        .from("categorias_torneo")
+        .select("nombre")
+        .eq("torneo_id", clubData.torneo_id)
+        .order("nombre");
+
+      if (catData) {
+        setCategoriasOficiales(catData.map(c => c.nombre));
+      }
     }
     if (clubError) console.error("Error al cargar la biblia del club:", clubError);
     setLoading(false);
   };
 
-  // 🔥 NUEVO: Solo selecciona visualmente (no guarda en BD)
   const handleToggleCategory = (categoria: string) => {
     if (!club) return;
-    
     setSelectedCats(prev => 
       prev.includes(categoria) 
         ? prev.filter(c => c !== categoria) 
@@ -59,12 +68,11 @@ export default function TournamentClubDetail() {
     );
   };
 
-  // 🔥 NUEVO: Botón de Guardar en Supabase
   const handleConfirmCategories = async () => {
     if (!club) return;
     setSaving(true);
 
-    await supabase
+    const { error } = await supabase
       .from("inscripciones_torneo")
       .update({ 
         categorias_confirmadas: selectedCats, 
@@ -72,24 +80,23 @@ export default function TournamentClubDetail() {
       })
       .eq("id", club.id);
 
-    // Actualizamos el objeto club local para que salgan los ticks verdes
-    setClub({ ...club, categorias_confirmadas: selectedCats, estado: selectedCats.length > 0 ? 'aceptada' : 'pendiente' });
+    if (!error) {
+      setClub({ ...club, categorias_confirmadas: selectedCats, estado: selectedCats.length > 0 ? 'aceptada' : 'pendiente' });
+      const msg = selectedCats.length > 0 
+        ? "¡Cambios guardados! Equipos confirmados oficialmente." 
+        : "Equipos desconfirmados. El club vuelve a estar pendiente.";
+      alert(msg);
+    } else {
+      alert("Error al conectar con la base de datos.");
+    }
     setSaving(false);
-    alert("¡Equipos confirmados oficialmente!");
   };
 
   const handleAssignHotel = async (hotelId: string) => {
     if (!club) return;
-    
-    // USAMOS hotel_id
     const newHotelId = club.hotel_id === hotelId ? null : hotelId;
-    
     setClub({ ...club, hotel_id: newHotelId });
-
-    await supabase
-      .from("inscripciones_torneo")
-      .update({ hotel_id: newHotelId })
-      .eq("id", club.id);
+    await supabase.from("inscripciones_torneo").update({ hotel_id: newHotelId }).eq("id", club.id);
   };
 
   const handleCopyInviteLink = () => {
@@ -112,7 +119,7 @@ export default function TournamentClubDetail() {
   const linkActivo = club.club_linked_id != null;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20 max-w-7xl mx-auto">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 max-w-[1600px] mx-auto">
       
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-amber-500 font-black uppercase text-xs tracking-widest hover:text-white transition-colors">
         <ArrowLeft size={16} /> Volver a Clubes
@@ -179,66 +186,79 @@ export default function TournamentClubDetail() {
                   <Trophy className="text-amber-500" /> Equipos del Club
                 </h2>
                 <p className="text-slate-400 text-xs md:text-sm mt-1">
-                  Selecciona los equipos que apruebas. Al confirmar (tick verde), aparecerán automáticamente en la matriz global del torneo.
+                  Activa los equipos oficiales y pulsa confirmar.
                 </p>
               </div>
               
-              {/* 🔥 NUEVO BOTÓN CONFIRMAR */}
               <button 
                 onClick={handleConfirmCategories}
                 disabled={saving}
-                className="bg-amber-500 text-brand-deep px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:bg-white transition-all shadow-lg"
+                className="bg-amber-500 text-brand-deep px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest flex items-center gap-2 hover:bg-white transition-all shadow-lg"
               >
-                {saving ? <div className="w-4 h-4 border-2 border-brand-deep border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 size={14} />}
-                Confirmar Equipos
+                {saving ? <div className="w-4 h-4 border-2 border-brand-deep border-t-transparent rounded-full animate-spin" /> : <CheckCircle2 size={16} />}
+                Guardar Cambios
               </button>
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em]">Equipos Solicitados por el club</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
-                {club.categorias?.map((cat: string) => {
-                  // 🔥 LOGICA VISUAL ACTUALIZADA
-                  const isOfficiallyConfirmed = club.categorias_confirmadas?.includes(cat);
-                  const isSelected = selectedCats.includes(cat);
-                  
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => handleToggleCategory(cat)}
-                      className={`relative p-4 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 group ${
-                        isOfficiallyConfirmed 
-                          ? 'bg-green-500/10 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.15)]' 
-                          : isSelected 
-                            ? 'bg-amber-500/20 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
-                            : 'bg-black/40 border-white/10 hover:border-white/30'
-                      }`}
-                    >
-                      <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-                        isOfficiallyConfirmed ? 'border-green-500 bg-green-500 text-brand-deep' 
-                        : isSelected ? 'border-amber-500 bg-amber-500 text-brand-deep' 
-                        : 'border-slate-600'
-                      }`}>
-                        {(isOfficiallyConfirmed || isSelected) && <CheckCircle2 size={10} strokeWidth={4} />}
-                      </div>
-                      
-                      <span className={`text-lg md:text-xl font-black italic transition-colors ${
-                        isOfficiallyConfirmed ? 'text-green-500' 
-                        : isSelected ? 'text-amber-500' 
-                        : 'text-slate-500 group-hover:text-white'
-                      }`}>{cat}</span>
-                      
-                      <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${
-                        isOfficiallyConfirmed ? 'text-green-500' 
-                        : isSelected ? 'text-amber-500' 
-                        : 'text-slate-500'
-                      }`}>
-                        {isOfficiallyConfirmed ? 'Confirmado' : isSelected ? 'Seleccionado' : 'Pendiente'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <h3 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                Asignación de Categorías
+              </h3>
+              
+              {categoriasOficiales.length === 0 ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-amber-500 text-sm">
+                  El torneo no tiene categorías creadas. Ve al panel de Categorías.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                  {categoriasOficiales.map((cat: string) => {
+                    const isSelected = selectedCats.includes(cat);
+                    const isSavedInDB = club.categorias_confirmadas?.includes(cat);
+                    const fueSolicitado = club.categorias?.includes(cat); // 🔥 Vemos si el club lo pidió originalmente
+                    
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => handleToggleCategory(cat)}
+                        className={`relative p-4 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 group ${
+                          isSelected && isSavedInDB
+                            ? 'bg-green-500/10 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.15)]' 
+                            : isSelected 
+                              ? 'bg-amber-500/20 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                              : 'bg-black/40 border-white/10 hover:border-white/30'
+                        }`}
+                      >
+                        {/* Indicador de si el club lo solicitó */}
+                        {fueSolicitado && !isSelected && (
+                          <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-orange-500" title="El club solicitó esta categoría" />
+                        )}
+
+                        <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
+                          isSelected && isSavedInDB ? 'border-green-500 bg-green-500 text-brand-deep' 
+                          : isSelected ? 'border-amber-500 bg-amber-500 text-brand-deep' 
+                          : 'border-slate-600'
+                        }`}>
+                          {isSelected && <CheckCircle2 size={10} strokeWidth={4} />}
+                        </div>
+                        
+                        <span className={`text-lg md:text-xl font-black italic transition-colors ${
+                          isSelected && isSavedInDB ? 'text-green-500' 
+                          : isSelected ? 'text-amber-500' 
+                          : 'text-slate-500 group-hover:text-white'
+                        }`}>{cat}</span>
+                        
+                        <span className={`text-[8px] md:text-[9px] font-bold uppercase tracking-widest ${
+                          isSelected && isSavedInDB ? 'text-green-500' 
+                          : isSelected ? 'text-amber-500' 
+                          : 'text-slate-500'
+                        }`}>
+                          {isSelected && isSavedInDB ? 'Confirmado' : isSelected ? 'Sin guardar' : (fueSolicitado ? 'Solicitado' : 'Inactivo')}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

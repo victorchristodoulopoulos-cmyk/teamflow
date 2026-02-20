@@ -4,7 +4,7 @@ import { supabase } from "./supabase/supabaseClient";
 import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from '@capacitor/push-notifications';
 
-// Layouts Principales
+// --- LAYOUTS PRINCIPALES ---
 import LandingPage from "./pages/LandingPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -17,13 +17,14 @@ import FamilyRoute from "./layouts/FamilyRoute";
 import TournamentRoute from "./layouts/TournamentRoute"; 
 import { TeamProvider } from "./context/TeamContext";
 
-// --- LOGIN & PUBLIC ---
+// --- LOGIN & PUBLIC PAGES ---
 import LoginSelector from "./pages/LoginSelector";
 import Login from "./pages/Login"; 
 import DemoAccess from "./pages/dashboard/DemoAccess";
 import TeamRegister from "./pages/public/TeamRegister";
 import PublicRegistration from "./pages/public/PublicRegistration"; 
 import ClubRegister from "./pages/public/ClubRegister"; 
+import TournamentRegistrationGateway from "./pages/public/TournamentRegistrationGateway"; 
 import PublicTournamentRegistration from "./pages/public/PublicTournamentRegistration";
 
 // --- ZONA SUPER ADMIN ---
@@ -41,20 +42,29 @@ import AdminLogisticsHub from "./pages/admin/AdminLogisticsHub";
 import TournamentDashboardLayout from "./layouts/TournamentDashboardLayout";
 import TournamentDashboardHome from "./pages/tournament/TournamentDashboardHome";
 import TournamentClubs from "./pages/tournament/TournamentClubs";
-import TournamentClubDetail from "./pages/tournament/TournamentClubDetail"; // 🔥 NUEVO: La Biblia del Club
-import TournamentCategories from "./pages/tournament/TournamentCategories"; // 🔥 NUEVO: Matriz de Categorías
-import TournamentAccommodations from "./pages/tournament/TournamentAccommodations"; // 🔥 NUEVO: Alojamientos
-import TournamentSettings from "./pages/tournament/TournamentSettings"; // 🔥 NUEVO: Pagos y Settings
+import TournamentClubDetail from "./pages/tournament/TournamentClubDetail";
+import TournamentCategories from "./pages/tournament/TournamentCategories";
+import TournamentAccommodations from "./pages/tournament/TournamentAccommodations";
+import TournamentSettings from "./pages/tournament/TournamentSettings"; // Hub Financiero
+import TournamentClubPayments from "./pages/tournament/TournamentClubPayments"; // Detalle Pagos Club
+import TournamentSedes from "./pages/tournament/TournamentSedes";
+import TournamentSedeDetail from "./pages/tournament/TournamentSedeDetail";
+import TournamentScheduler from "./pages/tournament/TournamentScheduler"; 
 
 // --- CLUB DASHBOARD ---
 import ClubDashboardLayout from "./layouts/ClubDashboardLayout";
 import ClubDashboardHome from "./pages/club/ClubDashboardHome";
 import ClubTournaments from "./pages/club/ClubTournaments";
 import ClubTournamentDetail from "./pages/club/ClubTournamentDetail"; 
+import ClubTournamentJoin from "./pages/club/ClubTournamentJoin"; // Linkado Rápido (Backup)
+import ClubTournamentRegistration from "./pages/club/ClubTournamentRegistration"; // Formulario VIP (El bueno)
+import ClubStages from "./pages/club/ClubStages"; // 🔥 Módulo de Stages & Viajes
+import ClubStageDetail from "./pages/club/ClubStageDetail"; // 🔥 Detalle del Stage (Command Center)
 import ClubTeams from "./pages/club/ClubTeams";
 import ClubPlayers from "./pages/club/ClubPlayers";
 import ClubStaff from "./pages/club/ClubStaff";
 import ClubPayments from "./pages/club/ClubPayments";
+import ClubChat from "./pages/club/ClubChat";
 
 // --- TEAM DASHBOARD ---
 import TeamDashboardLayout from "./layouts/TeamDashboardLayout";
@@ -69,8 +79,10 @@ import FamilyTournaments from "./pages/family/FamilyTournaments";
 import FamilyPayments from "./pages/family/FamilyPayments";
 import FamilyDocuments from "./pages/family/FamilyDocuments";
 import FamilyProfile from "./pages/family/FamilyProfile";
+import FamilyStages from "./pages/family/FamilyStages"; // 🔥 Stages para familias
+import FamilyChat from "./pages/family/FamilyChat";
 
-// --- ANTIGUO DASHBOARD ADMIN ---
+// --- ANTIGUO DASHBOARD ADMIN (Legacy) ---
 import DashboardLayout from "./layouts/DashboardLayout";
 import Overview from "./pages/dashboard/Overview";
 import Tournaments from "./pages/dashboard/Tournaments";
@@ -80,6 +92,7 @@ import Hotels from "./pages/dashboard/Hotels";
 import TransportPage from "./pages/dashboard/Transport";
 import PaymentsPage from "./pages/dashboard/Payments";
 
+// --- INICIALIZADOR DE APP (Gestión de Sesión y Rutas) ---
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -87,10 +100,24 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleInitialRouting = async () => {
+      // 🔥 BYPASS: RUTAS PÚBLICAS (CRÍTICO PARA QUE FUNCIONE EL GATEWAY Y NO PIDA LOGIN)
+      const isPublicRoute = 
+        location.pathname === "/" || 
+        location.pathname.startsWith("/inscripcion/") || 
+        location.pathname.startsWith("/registro") || 
+        location.pathname.startsWith("/activar-") ||
+        location.pathname.startsWith("/demo");
+
+      if (isPublicRoute) {
+        setInitializing(false);
+        return; 
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       const isApp = Capacitor.isNativePlatform();
       const isLoggingIn = location.pathname.includes('/login');
 
+      // Gestión de Notificaciones en Móvil
       if (isApp) {
         console.log("Iniciando registro de notificaciones...");
         let permStatus = await PushNotifications.checkPermissions();
@@ -103,14 +130,9 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         PushNotifications.addListener('registration', (token) => {
           console.log('--- TOKEN DE NOTIFICACION ---', token.value);
         });
-        PushNotifications.addListener('registrationError', (error) => {
-          console.error('Error al registrar notificaciones:', error);
-        });
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          alert(`🔔 TeamFlow: ${notification.title}\n${notification.body}`);
-        });
       }
 
+      // Redirección Inteligente por Rol
       if (session) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -119,37 +141,22 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
           .single();
 
         if (profile) {
-          let targetPath = "/";
-          
-          if (profile.role === "super_admin") {
-            targetPath = "/admin/dashboard";
-          } 
-          else if (profile.role === "admin") {
-            if (location.pathname.startsWith("/tournament-dashboard") || location.pathname.includes("tournament")) {
-              targetPath = "/tournament-dashboard";
-            } else {
-              targetPath = "/dashboard";
-            }
-          } 
-          else if (profile.role === "club" || profile.role === "org_admin") {
-            targetPath = "/club-dashboard";
-          } 
-          else if (profile.role === "team") {
-            targetPath = "/team-dashboard";
-          } 
-          else if (profile.role === "tournament") {
-            targetPath = "/tournament-dashboard";
-          } 
-          else if (profile.role === "family") {
-            targetPath = "/family-dashboard";
-          }
-          
+          // Si estamos en raíz o login, mandamos al dashboard correspondiente
           if (location.pathname === "/" || isLoggingIn) {
+            let targetPath = "/";
+            if (profile.role === "super_admin") targetPath = "/admin/dashboard";
+            else if (profile.role === "admin") targetPath = "/dashboard";
+            else if (profile.role === "club" || profile.role === "org_admin") targetPath = "/club-dashboard";
+            else if (profile.role === "team") targetPath = "/team-dashboard";
+            else if (profile.role === "tournament") targetPath = "/tournament-dashboard";
+            else if (profile.role === "family") targetPath = "/family-dashboard";
+            
             navigate(targetPath, { replace: true });
           }
         }
       } else {
-        if (isApp && !isLoggingIn) {
+        // Si no hay sesión y no es pública -> Login
+        if (!isLoggingIn && !isPublicRoute) {
           navigate("/login", { replace: true });
         }
       }
@@ -189,7 +196,7 @@ export default function App() {
     <BrowserRouter>
       <AppInitializer>
         <Routes>
-          {/* RUTAS CON NAVBAR DE TEAMFLOW */}
+          {/* --- RUTAS PÚBLICAS (WEB) --- */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/demo" element={<DemoAccess />} />
@@ -198,9 +205,10 @@ export default function App() {
             <Route path="/activar-club" element={<ClubRegister />} />
           </Route>
 
-          {/* 🔥 RUTA MARCA BLANCA (SIN NAVBAR NI FOOTER) */}
-          <Route path="/inscripcion/:torneoId" element={<PublicTournamentRegistration />} />
+          {/* --- GATEWAYS Y LANDINGS ESPECÍFICAS --- */}
+          <Route path="/inscripcion/:torneoId" element={<TournamentRegistrationGateway />} />
 
+          {/* --- LOGIN --- */}
           <Route path="/login" element={<LoginSelector />} />
           <Route path="/login/admin" element={<Login mode="admin" />} />
           <Route path="/login/team" element={<Login mode="team" />} />
@@ -208,6 +216,7 @@ export default function App() {
           <Route path="/login/family" element={<Login mode="family" />} />
           <Route path="/login/tournament" element={<Login mode="tournament" />} />
 
+          {/* --- SUPER ADMIN --- */}
           <Route path="/admin" element={<SuperAdminLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
@@ -220,43 +229,61 @@ export default function App() {
             <Route path="analytics" element={<AdminAnalytics />} />
           </Route>
 
-          {/* 🔥 RUTAS DEL TORNEO ACTUALIZADAS */}
+          {/* --- DASHBOARD TORNEO (ORGANIZADOR) 🏆 --- */}
           <Route path="/tournament-dashboard" element={<TournamentRoute><TournamentDashboardLayout /></TournamentRoute>}>
             <Route index element={<TournamentDashboardHome />} />
-            
             <Route path="clubs" element={<TournamentClubs />} />
             <Route path="clubs/:inscripcionId" element={<TournamentClubDetail />} />
-            
             <Route path="categorias" element={<TournamentCategories />} />
+            <Route path="scheduler" element={<TournamentScheduler />} />
+            <Route path="sedes" element={<TournamentSedes />} />
+            <Route path="sedes/:sedeId" element={<TournamentSedeDetail />} />
             <Route path="alojamientos" element={<TournamentAccommodations />} />
             <Route path="pagos" element={<TournamentSettings />} />
+            <Route path="pagos/club/:clubId" element={<TournamentClubPayments />} />
           </Route>
 
+          {/* --- DASHBOARD CLUB --- */}
           <Route path="/club-dashboard" element={<ClubRoute><ClubDashboardLayout /></ClubRoute>}>
             <Route index element={<ClubDashboardHome />} />
             <Route path="torneos" element={<ClubTournaments />} />
+            <Route path="torneos/:torneoId/join" element={<ClubTournamentJoin />} />
+            <Route path="torneos/:torneoId/registro" element={<ClubTournamentRegistration />} />
             <Route path="torneos/:torneoId" element={<ClubTournamentDetail />} /> 
+            
+            {/* 🔥 NUEVO: Módulo de Stages & Viajes */}
+            <Route path="stages" element={<ClubStages />} />
+            <Route path="stages/:stageId" element={<ClubStageDetail />} />
+
             <Route path="equipos" element={<ClubTeams />} />
             <Route path="jugadores" element={<ClubPlayers />} />
             <Route path="staff" element={<ClubStaff />} />
             <Route path="pagos" element={<ClubPayments />} />
+            <Route path="chat" element={<ClubChat />} />
           </Route>
 
+          {/* --- DASHBOARD TEAM --- */}
           <Route path="/team-dashboard" element={<TeamRoute><TeamProvider><TeamDashboardLayout /></TeamProvider></TeamRoute>}>
             <Route index element={<TeamDashboardHome />} />
             <Route path="jugadores" element={<TeamPlayers />} />
             <Route path="logistica" element={<TeamLogistics />} />
           </Route>
 
+          {/* --- DASHBOARD FAMILY --- */}
           <Route path="/family-dashboard" element={<FamilyRoute><FamilyDashboardLayout /></FamilyRoute>}>
             <Route index element={<FamilyDashboardHome />} />
             <Route path="torneos" element={<FamilyTournaments />} />
             <Route path="pagos" element={<FamilyPayments />} />
+            
+            {/* 🔥 NUEVO: Stages para Familias */}
+            <Route path="stages" element={<FamilyStages />} />
+            
             <Route path="documentos" element={<FamilyDocuments />} />
             <Route path="perfil" element={<FamilyProfile />} />
+            <Route path="chat" element={<FamilyChat />} />
           </Route>
 
-          {/* RUTAS ANTIGUAS ADMIN */}
+          {/* --- ANTIGUO DASHBOARD ADMIN (Legacy) --- */}
           <Route path="/dashboard" element={<AdminRoute><DashboardLayout /></AdminRoute>}>
             <Route index element={<Overview />} />
             <Route path="tournaments" element={<Tournaments />} />
@@ -267,6 +294,7 @@ export default function App() {
             <Route path="payments" element={<PaymentsPage />} />
           </Route>
 
+          {/* --- 404 --- */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppInitializer>

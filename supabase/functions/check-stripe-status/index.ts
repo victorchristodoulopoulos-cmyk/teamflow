@@ -8,20 +8,25 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // Manejo de CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
+    // 🔥 USAMOS EL SERVICE_ROLE_KEY PARA PODER EDITAR LA TABLA CLUBS SIN BLOQUEOS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' 
     )
-
+    
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') as string, {
       apiVersion: '2023-10-16',
       httpClient: Stripe.createFetchHttpClient(),
     })
 
     const { club_id } = await req.json()
+    if (!club_id) throw new Error('Falta el ID del club')
 
     // Buscamos el ID de Stripe del club
     const { data: club } = await supabaseClient
@@ -40,11 +45,19 @@ serve(async (req) => {
     // Verificamos si ha enviado los detalles y si puede recibir dinero
     const isComplete = account.details_submitted && account.charges_enabled
 
+    // 🔥 EL FIX: SI STRIPE DICE QUE ESTÁ LISTO, LO GUARDAMOS EN LA BASE DE DATOS
+    if (isComplete) {
+      await supabaseClient
+        .from('clubs')
+        .update({ stripe_onboarding_complete: true })
+        .eq('id', club_id)
+    }
+
     return new Response(
       JSON.stringify({ complete: isComplete }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     )
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders })
   }
 })

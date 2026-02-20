@@ -13,6 +13,7 @@
     "@capacitor/core": "^8.1.0",
     "@capacitor/ios": "^8.1.0",
     "@capacitor/push-notifications": "^8.0.1",
+    "@react-pdf/renderer": "^4.3.2",
     "@remix-run/router": "1.15.3",
     "@supabase/supabase-js": "^2.86.0",
     "@tanstack/react-query": "^5.90.20",

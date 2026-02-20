@@ -48,7 +48,7 @@ export default function InvitePlayerModal({ isOpen, onClose, clubId, torneoId }:
     ? `${baseUrl}/registro?club=${clubId}&torneo=${selectedTorneo}`
     : "";
 
-  const shareMessage = `¡Hola! Únete a nuestro club. Por favor, completa la inscripción oficial de tu hijo/a en el siguiente enlace seguro de TeamFlow: \n\n${inviteLink}`;
+  const shareMessage = `\n\n${inviteLink}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shareMessage);

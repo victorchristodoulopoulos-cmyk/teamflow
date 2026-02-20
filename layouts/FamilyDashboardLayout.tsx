@@ -2,7 +2,7 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import PortalLayout from "./PortalLayout";
 import { supabase } from "../supabase/supabaseClient";
-import { LayoutDashboard, CreditCard, FileText, User, Trophy, Users } from "lucide-react"; 
+import { LayoutDashboard, CreditCard, FileText, User, Trophy, Map as MapIcon, Users, MessageCircle } from "lucide-react";
 import { FamilyProvider, useFamily } from "../context/FamilyContext"; 
 
 function StickyChildSelector() {
@@ -11,6 +11,10 @@ function StickyChildSelector() {
   
   // 1. Si no hay jugadores o solo hay uno, no mostramos el selector.
   if (!players || players.length <= 1) return null;
+
+  // 🔥 CLINICAL CHANGE: Si estamos en la página de Chat, ocultamos este selector global
+  // porque el chat ya tiene el suyo propio adaptado al diseño.
+  if (location.pathname.includes("/family-dashboard/chat")) return null;
 
   // 2. Lógica de visibilidad: Ocultamos "TODOS" si estamos en el Dashboard (Inicio)
   const isDashboard = location.pathname === "/family-dashboard";
@@ -59,7 +63,9 @@ function StickyChildSelector() {
 const links = [
   { to: "/family-dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
   { to: "/family-dashboard/torneos", label: "Torneos", icon: Trophy }, 
+  { to: "/family-dashboard/stages", label: "Stages", icon: MapIcon },
   { to: "/family-dashboard/pagos", label: "Pagos", icon: CreditCard },
+  { to: "/family-dashboard/chat", label: "Chat", icon: MessageCircle }, // 🔥 NUEVO BOTÓN
   { to: "/family-dashboard/documentos", label: "Docs", icon: FileText },
   { to: "/family-dashboard/perfil", label: "Perfil", icon: User },
 ];

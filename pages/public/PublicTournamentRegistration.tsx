@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import { supabase } from "../../supabase/supabaseClient";
 import { Send, Mail, Building2, Phone, CheckCircle2, User, HelpCircle, AlertCircle } from "lucide-react";
 
-// Función auxiliar para la foto del banner
 const getBannerUrl = (path: string | null) => {
   if (!path) return "https://images.unsplash.com/photo-1518605368461-1e12d1b8004b?auto=format&fit=crop&w=2500&q=80";
   if (path.startsWith('http')) return path;
@@ -16,6 +15,7 @@ export default function PublicTournamentRegistration() {
   
   const [torneoNombre, setTorneoNombre] = useState<string>("");
   const [torneoBanner, setTorneoBanner] = useState<string | null>(null);
+  const [categoriasList, setCategoriasList] = useState<string[]>([]); // 🔥 Ahora es dinámico
   const [loadingTorneo, setLoadingTorneo] = useState(true);
   const [torneoError, setTorneoError] = useState(false);
 
@@ -34,13 +34,6 @@ export default function PublicTournamentRegistration() {
     terminos_aceptados: false
   });
 
-  const categoriasList = [
-    "B8 (2018-2019)", "B9 (2017)", "B10 (2016)", "B11 (2015)", 
-    "B12 (2014)", "B13 (2013)", "B14 (2012)", "B15 (2011)", 
-    "B16 (2010)", "B19 (2007-2009)", "G12 (2014-2015)", 
-    "G14 (2012-2013)", "G16 (2010-2011)", "G19 (2007-2009)"
-  ];
-
   const comoConocisteList = [
     "Hemos participado otros años", "A través de conocidos", "Buscando por internet",
     "Instagram", "Recibí un email con la invitación", "Me llamaron por teléfono",
@@ -56,19 +49,31 @@ export default function PublicTournamentRegistration() {
       }
 
       try {
-        const { data, error } = await supabase
+        // 1. Datos base del torneo
+        const { data: torneoData, error: torneoError } = await supabase
           .from("torneos")
           .select("name, banner_path")
           .eq("id", torneoId)
           .single();
 
-        if (error || !data) {
-          console.error("Error cargando torneo:", error);
+        if (torneoError || !torneoData) {
           setTorneoError(true);
         } else {
-          setTorneoNombre(data.name);
-          setTorneoBanner(data.banner_path);
+          setTorneoNombre(torneoData.name);
+          setTorneoBanner(torneoData.banner_path);
         }
+
+        // 2. 🔥 Cargar categorías oficiales de este torneo
+        const { data: catData } = await supabase
+          .from("categorias_torneo")
+          .select("nombre")
+          .eq("torneo_id", torneoId)
+          .order("nombre");
+
+        if (catData) {
+          setCategoriasList(catData.map(c => c.nombre));
+        }
+
       } catch (err) {
         setTorneoError(true);
       } finally {
@@ -88,17 +93,19 @@ export default function PublicTournamentRegistration() {
     
     const origenFinal = formData.como_nos_conociste === "Otro" ? `Otro: ${otroConocimiento}` : formData.como_nos_conociste;
 
+    // 🔥 Inserción mejorada: Añadimos 'es_club_teamflow: false' explícitamente
     const { error } = await supabase.from("inscripciones_torneo").insert([{
       torneo_id: torneoId, 
       nombre_club: formData.nombre_club,
       nombre_responsable: formData.nombre_responsable,
       email_responsable: formData.email_responsable,
       telefono: formData.telefono,
-      categorias: formData.categorias,
+      categorias: formData.categorias, // Se guarda como array de texto
       info_adicional: formData.info_adicional,
       como_nos_conociste: origenFinal,
       terminos_aceptados: formData.terminos_aceptados,
-      importe_inscripcion: formData.categorias.length * 150
+      importe_inscripcion: formData.categorias.length * 150, // Lógica simple por ahora
+      es_club_teamflow: false // Marca clave para diferenciar
     }]);
 
     if (!error) {
@@ -150,7 +157,7 @@ export default function PublicTournamentRegistration() {
   return (
     <div className="min-h-screen bg-app bg-noise">
       
-      {/* 📸 BANNER TIPO GOOGLE FORMS DINÁMICO (SIN LOGO DE TEAMFLOW) */}
+      {/* 📸 BANNER DINÁMICO */}
       <div className="w-full h-[35vh] md:h-[45vh] relative">
         <img 
           src={getBannerUrl(torneoBanner)} 
@@ -160,7 +167,6 @@ export default function PublicTournamentRegistration() {
         <div className="absolute inset-0 bg-gradient-to-t from-brand-deep via-transparent to-black/40"></div>
       </div>
 
-      {/* 📝 FORMULARIO SOLAPADO */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 relative z-10 -mt-24 sm:-mt-40 pb-24">
         
         <form onSubmit={handleSubmit} className="shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] rounded-[32px] overflow-hidden">
@@ -219,24 +225,31 @@ export default function PublicTournamentRegistration() {
                 <label className="text-[10px] font-black uppercase text-amber-500 ml-2 tracking-widest flex items-center gap-2">
                   Categoría/s a Inscribir <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {categoriasList.map(c => {
-                    const isSelected = formData.categorias.includes(c);
-                    return (
-                      <button 
-                        key={c} type="button" 
-                        onClick={() => setFormData(prev => ({ ...prev, categorias: isSelected ? prev.categorias.filter(x => x !== c) : [...prev.categorias, c] }))} 
-                        className={`py-3 px-2 rounded-xl text-xs font-black border transition-all duration-300 ${
-                          isSelected 
-                            ? 'bg-amber-500 border-amber-500 text-brand-deep shadow-[0_0_20px_rgba(245,158,11,0.3)] scale-[1.02]' 
-                            : 'bg-black/30 border-white/5 text-slate-400 hover:border-white/20 hover:bg-white/5'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    )
-                  })}
-                </div>
+                
+                {categoriasList.length === 0 ? (
+                  <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-xl text-sm text-center">
+                    El torneo aún no ha publicado las categorías oficiales.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {categoriasList.map(c => {
+                      const isSelected = formData.categorias.includes(c);
+                      return (
+                        <button 
+                          key={c} type="button" 
+                          onClick={() => setFormData(prev => ({ ...prev, categorias: isSelected ? prev.categorias.filter(x => x !== c) : [...prev.categorias, c] }))} 
+                          className={`py-3 px-2 rounded-xl text-xs font-black border transition-all duration-300 ${
+                            isSelected 
+                              ? 'bg-amber-500 border-amber-500 text-brand-deep shadow-[0_0_20px_rgba(245,158,11,0.3)] scale-[1.02]' 
+                              : 'bg-black/30 border-white/5 text-slate-400 hover:border-white/20 hover:bg-white/5'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* --- INFO ADICIONAL --- */}
@@ -269,7 +282,6 @@ export default function PublicTournamentRegistration() {
                     </label>
                   ))}
                   
-                  {/* Opción OTRO */}
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${formData.como_nos_conociste === "Otro" ? 'border-amber-500' : 'border-white/20 group-hover:border-amber-500/50'}`}>
                       {formData.como_nos_conociste === "Otro" && <div className="w-2.5 h-2.5 bg-amber-500 rounded-full" />}
@@ -283,7 +295,7 @@ export default function PublicTournamentRegistration() {
                 </div>
               </div>
 
-              {/* --- TÉRMINOS Y CONDICIONES --- */}
+              {/* --- TÉRMINOS --- */}
               <div className="pt-8 border-t border-white/5">
                 <label className="flex items-start gap-4 cursor-pointer group p-5 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-colors">
                   <div className={`mt-0.5 w-6 h-6 rounded border flex items-center justify-center shrink-0 transition-all ${formData.terminos_aceptados ? 'bg-amber-500 border-amber-500 text-brand-deep' : 'bg-black/50 border-white/20 group-hover:border-amber-500/50'}`}>
@@ -298,7 +310,7 @@ export default function PublicTournamentRegistration() {
               </div>
 
               {/* --- BOTÓN SUBMIT --- */}
-              <button disabled={loading} type="submit" className="w-full bg-amber-500 text-brand-deep font-black py-6 rounded-2xl uppercase tracking-[0.2em] text-sm mt-4 hover:bg-amber-400 transition-all shadow-[0_0_40px_rgba(245,158,11,0.2)] flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.98]">
+              <button disabled={loading || categoriasList.length === 0} type="submit" className="w-full bg-amber-500 text-brand-deep font-black py-6 rounded-2xl uppercase tracking-[0.2em] text-sm mt-4 hover:bg-amber-400 transition-all shadow-[0_0_40px_rgba(245,158,11,0.2)] flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.98]">
                 {loading ? <div className="w-6 h-6 border-2 border-brand-deep border-t-transparent rounded-full animate-spin" /> : <><Send size={20} /> Enviar Inscripción</>}
               </button>
               <p className="text-center text-[10px] text-slate-500 mt-4">
