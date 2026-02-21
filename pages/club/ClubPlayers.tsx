@@ -9,7 +9,7 @@ import {
   updatePlayerDetails,
   updateEnrollmentTeam
 } from "../../supabase/clubService";
-import { Search, ShieldCheck, Clock, X, Save, Edit3, Loader2, Users, User, Trophy } from "lucide-react";
+import { Search, ShieldCheck, Clock, X, Save, Edit3, Loader2, Users, User, Trophy, Link as LinkIcon, Check } from "lucide-react";
 
 export default function ClubPlayers() {
   const navigate = useNavigate(); // Hook para navegar
@@ -30,6 +30,9 @@ export default function ClubPlayers() {
     birth_date: "",
     team_id: ""
   });
+
+  // 🔥 NUEVO: Estado para el botón de Copiar Link Mágico
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -95,6 +98,14 @@ export default function ClubPlayers() {
     }
   };
 
+  // 🔥 NUEVO: Función para copiar el link mágico de un jugador
+  const handleCopyLink = (playerId: string) => {
+    const link = `${window.location.origin}/vincular-hijo?player=${playerId}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(playerId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   if (loading) return <div className="p-10 text-brand-neon animate-pulse font-mono uppercase font-black">Sincronizando Base de Datos...</div>;
 
   return (
@@ -128,7 +139,6 @@ export default function ClubPlayers() {
             />
           </div>
           
-          {/* 👇 BOTÓN QUE AHORA LLEVA A TORNEOS 👇 */}
           <button 
             onClick={() => navigate('/club-dashboard/torneos')}
             className="h-[60px] px-8 bg-brand-neon text-black rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 hover:bg-white transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(var(--brand-neon-rgb),0.3)] active:scale-95"
@@ -196,12 +206,28 @@ export default function ClubPlayers() {
                      </div>
                   </td>
                   <td className="px-10 py-6 text-right">
-                     <button 
-                        onClick={() => openEditModal(p)}
-                        className="px-6 py-3 rounded-xl bg-white/5 border border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-brand-neon hover:text-black hover:scale-105 transition-all flex items-center gap-2 ml-auto"
-                     >
-                        <Edit3 size={14} /> Ficha
-                     </button>
+                     <div className="flex items-center justify-end gap-2">
+                        {/* 🔥 NUEVO: Botón para Copiar Link de Vinculación */}
+                        <button 
+                           onClick={() => handleCopyLink(p.player_id)}
+                           className={`px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                             copiedId === p.player_id 
+                               ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500' 
+                               : 'bg-white/5 border-white/5 text-slate-400 hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30'
+                           }`}
+                           title="Copiar Link para Padres"
+                        >
+                           {copiedId === p.player_id ? <Check size={14} /> : <LinkIcon size={14} />}
+                           <span className="hidden sm:inline">{copiedId === p.player_id ? 'Copiado' : 'Link Familia'}</span>
+                        </button>
+
+                        <button 
+                           onClick={() => openEditModal(p)}
+                           className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:bg-brand-neon hover:text-black transition-all flex items-center gap-2"
+                        >
+                           <Edit3 size={14} /> <span className="hidden sm:inline">Ficha</span>
+                        </button>
+                     </div>
                   </td>
                 </tr>
               ))}

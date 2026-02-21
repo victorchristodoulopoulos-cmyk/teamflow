@@ -537,8 +537,17 @@ function PaymentCard({ payment, type, onPay, onTransfer, isProcessing, isCompact
              </div>
            )
          ) : (
-           <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center text-brand-neon shrink-0 ml-auto sm:ml-0">
-             <CheckCircle size={20} className="md:w-6 md:h-6" />
+           <div className="flex flex-col items-center sm:items-end w-full sm:w-auto shrink-0 ml-auto sm:ml-0">
+             <div className="w-full sm:w-auto px-5 md:px-6 py-3 md:py-3.5 rounded-xl md:rounded-2xl bg-brand-neon/10 border border-brand-neon/20 text-brand-neon flex items-center justify-center gap-2 cursor-default">
+               <CheckCircle size={16} className="md:w-[18px] md:h-[18px]" />
+               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">Abonado</span>
+             </div>
+             {/* 🔥 CLINICAL CHANGE: Mostrar el método de pago si existe */}
+             {payment.metodo_pago && (
+               <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1.5 sm:pr-2">
+                 Vía {payment.metodo_pago}
+               </span>
+             )}
            </div>
          )}
       </div>

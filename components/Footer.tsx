@@ -1,5 +1,6 @@
 import React from 'react';
 import { Instagram, Twitter, Linkedin, Mail } from 'lucide-react';
+import { Link } from 'react-router-dom'; // 🔥 Importamos Link para navegación rápida
 
 const Footer: React.FC = () => {
   return (
@@ -19,10 +20,11 @@ const Footer: React.FC = () => {
             </p>
           </div>
 
+          {/* 🔥 CLINICAL CHANGE: Enlaces reales a tus páginas legales */}
           <div className="flex gap-8 text-sm">
-            <a href="#" className="hover:text-brand-accent transition-colors">Aviso Legal</a>
-            <a href="#" className="hover:text-brand-accent transition-colors">Privacidad</a>
-            <a href="#" className="hover:text-brand-accent transition-colors">Cookies</a>
+            <Link to="/aviso-legal" className="hover:text-brand-accent transition-colors">Aviso Legal</Link>
+            <Link to="/privacidad" className="hover:text-brand-accent transition-colors">Privacidad</Link>
+            <Link to="/cookies" className="hover:text-brand-accent transition-colors">Cookies</Link>
           </div>
 
           <div className="flex gap-4">

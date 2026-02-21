@@ -26,6 +26,11 @@ import PublicRegistration from "./pages/public/PublicRegistration";
 import ClubRegister from "./pages/public/ClubRegister"; 
 import TournamentRegistrationGateway from "./pages/public/TournamentRegistrationGateway"; 
 import PublicTournamentRegistration from "./pages/public/PublicTournamentRegistration";
+import StaffRegistration from "./pages/public/StaffRegistration";
+import LinkPlayer from "./pages/public/LinkPlayer";
+import LegalNotice from "./pages/public/LegalNotice";
+import PrivacyPolicy from "./pages/public/PrivacyPolicy";
+import CookiesPolicy from "./pages/public/CookiesPolicy";
 
 // --- ZONA SUPER ADMIN ---
 import SuperAdminLayout from "./pages/admin/SuperAdminLayout";
@@ -81,6 +86,7 @@ import FamilyDocuments from "./pages/family/FamilyDocuments";
 import FamilyProfile from "./pages/family/FamilyProfile";
 import FamilyStages from "./pages/family/FamilyStages"; // 🔥 Stages para familias
 import FamilyChat from "./pages/family/FamilyChat";
+import FamilyStageDetail from "./pages/family/FamilyStageDetail";
 
 // --- ANTIGUO DASHBOARD ADMIN (Legacy) ---
 import DashboardLayout from "./layouts/DashboardLayout";
@@ -106,7 +112,8 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
         location.pathname.startsWith("/inscripcion/") || 
         location.pathname.startsWith("/registro") || 
         location.pathname.startsWith("/activar-") ||
-        location.pathname.startsWith("/demo");
+        location.pathname.startsWith("/demo") ||
+        location.pathname.startsWith("/vincular-hijo"); // 🟢 ¡AQUÍ ESTÁ LA MAGIA! PUERTA ABIERTA
 
       if (isPublicRoute) {
         setInitializing(false);
@@ -203,6 +210,13 @@ export default function App() {
             <Route path="/activar-staff" element={<TeamRegister />} />
             <Route path="/registro" element={<PublicRegistration />} /> 
             <Route path="/activar-club" element={<ClubRegister />} />
+            <Route path="/registro-staff" element={<StaffRegistration />} />
+            <Route path="/vincular-hijo" element={<LinkPlayer />} />
+
+            {/* 🔥 PÁGINAS LEGALES */}
+            <Route path="/aviso-legal" element={<LegalNotice />} />
+            <Route path="/privacidad" element={<PrivacyPolicy />} />
+            <Route path="/cookies" element={<CookiesPolicy />} />
           </Route>
 
           {/* --- GATEWAYS Y LANDINGS ESPECÍFICAS --- */}
@@ -275,12 +289,13 @@ export default function App() {
             <Route path="torneos" element={<FamilyTournaments />} />
             <Route path="pagos" element={<FamilyPayments />} />
             
-            {/* 🔥 NUEVO: Stages para Familias */}
+            {/* STAGES */}
             <Route path="stages" element={<FamilyStages />} />
+            <Route path="stages/:stageId" element={<FamilyStageDetail />} /> {/* 🔥 NUEVA RUTA */}
             
+            <Route path="chat" element={<FamilyChat />} />
             <Route path="documentos" element={<FamilyDocuments />} />
             <Route path="perfil" element={<FamilyProfile />} />
-            <Route path="chat" element={<FamilyChat />} />
           </Route>
 
           {/* --- ANTIGUO DASHBOARD ADMIN (Legacy) --- */}

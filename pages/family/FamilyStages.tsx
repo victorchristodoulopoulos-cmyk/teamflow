@@ -1,149 +1,134 @@
 import React, { useState, useEffect } from "react";
-import { useFamily } from "../../context/FamilyContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/supabaseClient";
-import { getClubStagesForFamily, enrollPlayerInStage } from "../../supabase/familyService";
-import { Map, Calendar, MapPin, CheckCircle2, ArrowRight, Loader2, Info } from "lucide-react";
+import { useFamily } from "../../context/FamilyContext";
+import { Map as MapIcon, Calendar, MapPin, ArrowRight, Plane, Loader2, Shield } from "lucide-react";
 
 export default function FamilyStages() {
-  const { activeChild, activeChildId, globalData } = useFamily();
+  const navigate = useNavigate();
+  const { activeChildId, globalData, players, loading: familyLoading } = useFamily();
   const [stages, setStages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [enrollingId, setEnrollingId] = useState<string | null>(null);
-
-  // Obtenemos el club del hijo activo desde el cache global del Contexto
-  const clubId = activeChildId ? globalData[activeChildId]?.club?.id : null;
 
   useEffect(() => {
-    if (activeChildId && clubId) {
-      loadStages();
-    } else {
-      setLoading(false);
-    }
-  }, [activeChildId, clubId]);
-
-  const loadStages = async () => {
-    setLoading(true);
-    try {
-      const data = await getClubStagesForFamily(clubId!, activeChildId!);
-      setStages(data);
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEnroll = async (stage: any) => {
-    if (!activeChildId || !clubId) return;
+    if (familyLoading) return;
     
-    const confirm = window.confirm(`¿Quieres inscribir a ${activeChild.name} en el stage ${stage.nombre}?`);
-    if (!confirm) return;
+    // Si no hay un niño específico seleccionado, mostramos los stages del primero por defecto
+    const targetPlayerId = activeChildId || (players.length > 0 ? players[0].id : null);
+    
+    if (targetPlayerId) {
+      const fetchStages = async () => {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from("stage_inscripciones")
+            .select("*, stages(*), clubs(name, logo_path)")
+            .eq("player_id", targetPlayerId)
+            .order("created_at", { ascending: false });
 
-    setEnrollingId(stage.id);
-    try {
-      await enrollPlayerInStage(activeChildId, stage.id, clubId);
-      await loadStages(); // Recargamos para mostrar el check de "Inscrito"
-    } catch (error: any) {
-      alert(error.message || "Error al inscribir");
-    } finally {
-      setEnrollingId(null);
+          if (error) throw error;
+
+          if (data) {
+            const formatted = data.map((ins: any) => {
+              const stageReal = ins.stages;
+              let finalLogo = stageReal.proveedor_logo;
+              if (finalLogo && !finalLogo.startsWith('http')) {
+                const { data: urlData } = supabase.storage.from('stage').getPublicUrl(finalLogo);
+                finalLogo = urlData.publicUrl;
+              }
+              return { 
+                ...stageReal, 
+                inscripcion_id: ins.id,
+                club_name: ins.clubs?.name,
+                estado_inscripcion: ins.estado,
+                proveedor_logo: finalLogo 
+              };
+            });
+            setStages(formatted);
+          }
+        } catch (error) {
+          console.error("Error cargando stages:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchStages();
+    } else {
+      setStages([]);
+      setLoading(false);
     }
-  };
+  }, [activeChildId, familyLoading, players]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center p-20">
-      <Loader2 className="animate-spin text-brand-neon" size={32} />
-    </div>
-  );
+  if (familyLoading || loading) return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-amber-500" size={40} /></div>;
 
-  if (!activeChildId) return (
-    <div className="text-center p-20 bg-[#162032]/40 rounded-[32px] border border-dashed border-white/10">
-      <Info className="mx-auto text-slate-500 mb-4" size={48} />
-      <p className="text-white font-bold">Selecciona a un hijo para ver los stages disponibles</p>
-    </div>
-  );
+  const targetPlayerName = activeChildId 
+    ? players.find(p => p.id === activeChildId)?.name 
+    : players[0]?.name;
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER CABECERA */}
-      <div className="bg-[#162032] border border-white/5 p-8 rounded-[40px] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="relative z-10">
-          <p className="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2 italic">Stages & Experiencias</p>
-          <h1 className="text-4xl md:text-5xl font-black italic text-white uppercase tracking-tighter leading-none">
-            Stages de <del></del> <span className="text-brand-neon">{activeChild?.name}</span>
+    <div className="space-y-8 animate-in fade-in duration-500 pb-20 max-w-[1600px] mx-auto">
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5 pb-6">
+        <div>
+          <p className="text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] mb-2 flex items-center gap-2">
+            <Plane size={14} /> Stages & Experiencias
+          </p>
+          <h1 className="text-3xl md:text-5xl font-display font-black text-white italic uppercase tracking-tighter leading-none">
+            Viajes de {targetPlayerName || "Jugador"}
           </h1>
         </div>
       </div>
 
-      {/* GRID DE STAGES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {stages.map((stage) => (
-          <div key={stage.id} className="group bg-[#162032] border border-white/5 rounded-[32px] overflow-hidden hover:border-amber-500/30 transition-all shadow-lg">
-            <div className="h-48 overflow-hidden relative">
-              <img src={stage.banner_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={stage.nombre} />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#162032] to-transparent opacity-80"></div>
-              
-              {/* Logo Proveedor XL */}
-              {stage.proveedor_logo && (
-                <div className="absolute top-4 right-4 bg-white p-2 rounded-xl shadow-xl">
-                   <img 
-                      src={stage.proveedor_logo.startsWith('http') 
-                        ? stage.proveedor_logo 
-                        : supabase.storage.from('stage').getPublicUrl(stage.proveedor_logo).data.publicUrl
-                      } 
-                      className="h-10 object-contain" 
-                      alt="Provider" 
-                   />
-                </div>
-              )}
-
-              <div className="absolute bottom-4 left-6 right-4">
-                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-1">{stage.nombre}</h3>
-                <p className="text-slate-400 text-xs flex items-center gap-1 font-bold uppercase tracking-wider">
-                  <MapPin size={12} className="text-amber-500"/> {stage.lugar}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <p className="text-slate-400 text-sm line-clamp-2 mb-6 leading-relaxed">
-                {stage.descripcion}
-              </p>
-              
-              <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-1.5">
-                    <Calendar size={12} className="text-amber-500"/> Inicio
-                  </span>
-                  <span className="text-white font-bold text-sm">{stage.fecha_inicio}</span>
-                </div>
-
-                {stage.estaInscrito ? (
-                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl font-black uppercase text-[10px] tracking-widest">
-                    <CheckCircle2 size={14} /> ¡Inscrito!
+      {stages.length === 0 ? (
+        <div className="text-center py-20 bg-[#162032]/40 rounded-[32px] border-2 border-dashed border-white/5">
+          <Plane size={48} className="mx-auto text-slate-600 mb-4 opacity-50" />
+          <h3 className="text-xl font-bold text-white mb-2">Ningún stage activo</h3>
+          <p className="text-slate-500 text-sm">Este jugador no está inscrito en ningún viaje actualmente.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {stages.map((stage) => (
+            <div 
+              key={stage.id} 
+              className="group bg-[#162032] border border-white/5 rounded-[32px] overflow-hidden hover:border-amber-500/50 transition-all shadow-lg flex flex-col"
+            >
+              <div className="h-56 overflow-hidden relative shrink-0">
+                <img src={stage.banner_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={stage.nombre} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#162032] via-[#162032]/40 to-transparent opacity-90"></div>
+                
+                {stage.proveedor_logo && (
+                  <div className="absolute top-4 right-4 bg-white p-2 rounded-xl shadow-xl border border-white/10">
+                    <img src={stage.proveedor_logo} alt="Organizador" className="h-8 w-auto object-contain" />
                   </div>
-                ) : (
-                  <button 
-                    onClick={() => handleEnroll(stage)}
-                    disabled={enrollingId === stage.id}
-                    className="bg-amber-500 text-brand-deep px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-amber-500/10"
-                  >
-                    {enrollingId === stage.id ? <Loader2 className="animate-spin" size={14}/> : <ArrowRight size={14}/>}
-                    Apuntarse Ahora
-                  </button>
                 )}
+
+                <div className="absolute bottom-4 left-6 right-4">
+                  <div className="flex gap-2 mb-2">
+                     <span className="px-2 py-1 bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded border border-amber-500/20 backdrop-blur-sm">Confirmado</span>
+                     <span className="px-2 py-1 bg-black/40 text-slate-300 text-[8px] font-black uppercase tracking-widest rounded border border-white/10 backdrop-blur-sm flex items-center gap-1"><Shield size={10}/> {stage.club_name}</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tight leading-none group-hover:text-amber-500 transition-colors">{stage.nombre}</h3>
+                </div>
+              </div>
+              
+              <div className="p-6 flex flex-col flex-1">
+                <div className="flex flex-col gap-2 mb-6">
+                   <p className="text-slate-400 text-xs flex items-center gap-2 font-bold uppercase tracking-wider"><MapPin size={14} className="text-amber-500"/> {stage.lugar}</p>
+                   <p className="text-slate-400 text-xs flex items-center gap-2 font-bold uppercase tracking-wider"><Calendar size={14} className="text-amber-500"/> {stage.fecha_inicio}</p>
+                </div>
+                
+                {/* BOTÓN MÁGICO A LOS DETALLES */}
+                <button 
+                  onClick={() => navigate(`/family-dashboard/stages/${stage.id}`)}
+                  className="mt-auto w-full py-4 rounded-xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 hover:text-[#0D1B2A] hover:border-amber-500 transition-all flex items-center justify-center gap-2"
+                >
+                  Ver Detalles del Viaje <ArrowRight size={16} />
+                </button>
               </div>
             </div>
-          </div>
-        ))}
-
-        {stages.length === 0 && (
-          <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[32px] bg-[#162032]/20">
-            <p className="text-slate-500 italic">No hay stages disponibles para este club en este momento.</p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useFamily } from "../../context/FamilyContext";
 import { 
   Calendar, MapPin, Trophy, Clock, CheckCircle, ChevronRight, 
-  User, Shield, Bus, Hotel, X, Navigation, Phone, Info, Loader2, Map, CreditCard
+  User, Shield, Bus, Hotel, X, Navigation, Phone, Info, Loader2, Map, CreditCard, Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/supabaseClient";
@@ -37,6 +37,11 @@ export default function FamilyTournaments() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingLogistics, setLoadingLogistics] = useState(false);
   const [currentTourneyName, setCurrentTourneyName] = useState("");
+
+  // 🔥 ESTADOS PARA EL MODAL DE EQUIPO/CONVOCATORIA
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [teamModalData, setTeamModalData] = useState<{ teamName: string, players: any[], isPublic: boolean, clubName: string } | null>(null);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   if (appLoading) return (
     <div className="p-10 text-brand-neon animate-pulse font-black uppercase tracking-widest flex items-center gap-3 justify-center min-h-[60vh]">
@@ -80,6 +85,37 @@ export default function FamilyTournaments() {
     }
   };
 
+  // 🔥 NUEVA FUNCIÓN: CARGAR PLANTILLA DEL EQUIPO
+  const handleOpenTeam = async (clubId: string, torneoId: string, teamId: string | null, clubName: string) => {
+    setIsTeamModalOpen(true);
+    setLoadingTeam(true);
+    try {
+      // 1. Comprobar si el club permite ver la lista
+      const { data: configData } = await supabase.from('club_torneos').select('mostrar_equipo').eq('club_id', clubId).eq('torneo_id', torneoId).single();
+      const isPublic = configData?.mostrar_equipo || false;
+
+      // 2. Si es público y hay teamId, buscamos a los compañeros de equipo
+      let playersData = [];
+      let tName = "Equipo no asignado";
+      
+      if (isPublic && teamId) {
+        const [teamRes, playersRes] = await Promise.all([
+          supabase.from('equipos').select('name').eq('id', teamId).single(),
+          supabase.from('torneo_jugadores').select('jugadores(name, surname, position)').eq('team_id', teamId).eq('status', 'inscrito')
+        ]);
+        
+        if (teamRes.data) tName = teamRes.data.name;
+        if (playersRes.data) playersData = playersRes.data.map((p: any) => p.jugadores).filter(Boolean);
+      }
+
+      setTeamModalData({ teamName: tName, players: playersData, isPublic, clubName });
+    } catch (err) {
+      console.error("Error cargando plantilla:", err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-20 transition-opacity duration-500">
       
@@ -106,6 +142,7 @@ export default function FamilyTournaments() {
             item={item} 
             navigate={navigate} 
             onOpenLogistics={() => handleOpenLogistics(item.childId, item.torneo_id, item.torneos?.name)}
+            onOpenTeam={() => handleOpenTeam(item.club_id, item.torneo_id, item.team_id, item.clubs?.name)} // 🔥 PASAMOS LA FUNCIÓN
           />
         ))}
 
@@ -118,7 +155,7 @@ export default function FamilyTournaments() {
       </div>
 
       {/* ==========================================
-          MODAL LOGÍSTICA: EL DISEÑO TOP RECUPERADO
+          MODAL LOGÍSTICA
           ========================================== */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[1000] bg-[#05080f] overflow-y-auto flex flex-col">
@@ -142,8 +179,8 @@ export default function FamilyTournaments() {
                </div>
             ) : (
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* 🏨 HOTEL (DISEÑO PREMIUM RECUPERADO) */}
-                  <div className="flex flex-col h-full">
+                 {/* 🏨 HOTEL (DISEÑO PREMIUM RECUPERADO) */}
+                 <div className="flex flex-col h-full">
                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Alojamiento Expedición
                      </h3>
@@ -179,10 +216,10 @@ export default function FamilyTournaments() {
                          </div>
                        </div>
                      ) : ( <NoData title="Hotel por asignar" Icon={Hotel} /> )}
-                  </div>
+                 </div>
 
-                  {/* 🚌 TRANSPORTE (DISEÑO PREMIUM RECUPERADO) */}
-                  <div className="flex flex-col h-full">
+                 {/* 🚌 TRANSPORTE (DISEÑO PREMIUM RECUPERADO) */}
+                 <div className="flex flex-col h-full">
                      <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                        <span className="w-2 h-2 rounded-full bg-brand-neon"></span> Horarios de Viaje
                      </h3>
@@ -226,7 +263,7 @@ export default function FamilyTournaments() {
                          </div>
                        </div>
                      ) : ( <NoData title="Horarios por confirmar" Icon={Bus} /> )}
-                  </div>
+                 </div>
                </div>
             )}
             <div className="mt-10 p-6 bg-brand-neon/5 border border-brand-neon/20 rounded-3xl flex items-center gap-4">
@@ -238,6 +275,66 @@ export default function FamilyTournaments() {
           </div>
         </div>
       )}
+
+      {/* ==========================================
+          🔥 NUEVO MODAL: CONVOCATORIA (EQUIPO)
+          ========================================== */}
+      {isTeamModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setIsTeamModalOpen(false)} />
+           <div className="relative bg-[#162032] border border-white/10 w-full max-w-md rounded-[32px] md:rounded-[40px] p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+              
+              <div className="flex justify-between items-start mb-6">
+                 <div>
+                    <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/20">
+                       <Shield size={24} />
+                    </div>
+                    <h3 className="text-2xl font-display font-black text-white uppercase italic tracking-tighter leading-none">
+                      Convocatoria Oficial
+                    </h3>
+                 </div>
+                 <button onClick={() => setIsTeamModalOpen(false)} className="p-2 bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
+              </div>
+
+              {loadingTeam ? (
+                 <div className="py-20 flex justify-center"><Loader2 className="animate-spin text-blue-400" size={32}/></div>
+              ) : !teamModalData?.isPublic ? (
+                 <div className="py-12 text-center flex flex-col items-center bg-[#0D1B2A] rounded-3xl border border-white/5">
+                    <Shield size={40} className="text-slate-600 mb-4 opacity-50" />
+                    <p className="text-sm font-black text-white uppercase tracking-widest">Alineación Oculta</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-2 px-4 leading-relaxed">
+                      El equipo técnico del <span className="text-white">{teamModalData?.clubName}</span> aún no ha hecho pública la lista de convocados.
+                    </p>
+                 </div>
+              ) : (
+                 <>
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-4 text-center">
+                       <p className="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-1">Equipo Asignado</p>
+                       <p className="text-xl font-black text-white italic tracking-tight">{teamModalData?.teamName}</p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
+                       {teamModalData?.players.map((p, index) => (
+                          <div key={index} className="flex items-center gap-4 p-3 bg-[#0D1B2A] border border-white/5 rounded-2xl hover:border-white/20 transition-all">
+                             <div className="w-10 h-10 rounded-xl bg-black/40 text-blue-400 flex items-center justify-center font-black text-xs border border-white/5 shrink-0">
+                                {index + 1}
+                             </div>
+                             <div className="min-w-0">
+                                <p className="text-sm font-bold text-white uppercase truncate">{p.name} {p.surname}</p>
+                                <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mt-0.5">{p.position || 'Jugador'}</p>
+                             </div>
+                          </div>
+                       ))}
+                       {teamModalData?.players.length === 0 && (
+                         <p className="text-center text-slate-500 text-xs py-4">No hay jugadores asignados a este equipo todavía.</p>
+                       )}
+                    </div>
+                 </>
+              )}
+           </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -260,7 +357,7 @@ function StatusLegend({ color, label }: { color: string, label: string }) {
   );
 }
 
-function TournamentCard({ item, navigate, onOpenLogistics }: { item: any, navigate: any, onOpenLogistics: () => void }) {
+function TournamentCard({ item, navigate, onOpenLogistics, onOpenTeam }: any) {
   const hasDate = !!item.torneos?.fecha;
   const dateObj = hasDate ? new Date(item.torneos.fecha) : null;
   const isPast = dateObj && dateObj < new Date();
@@ -329,17 +426,25 @@ function TournamentCard({ item, navigate, onOpenLogistics }: { item: any, naviga
       </div>
 
       {!isPast && (
-        <div className="mt-4 md:mt-8 pt-4 md:pt-6 border-t border-white/5 flex items-center gap-2 md:gap-4">
+        <div className="mt-4 md:mt-8 pt-4 md:pt-6 border-t border-white/5 flex flex-wrap items-center gap-2 md:gap-4">
           <button 
             onClick={onOpenLogistics}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 md:py-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl text-[8px] md:text-[9px] font-black text-slate-300 hover:text-brand-neon hover:border-brand-neon/30 transition-all uppercase tracking-widest"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 md:py-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl text-[8px] md:text-[9px] font-black text-slate-300 hover:text-brand-neon hover:border-brand-neon/30 transition-all uppercase tracking-widest min-w-[100px]"
           >
-            <Bus size={14} /> Plan Viaje
+            <Bus size={14} /> <span className="hidden sm:inline">Plan</span> Viaje
           </button>
           
+          {/* 🔥 EL NUEVO BOTÓN DE CONVOCATORIA */}
+          <button 
+            onClick={onOpenTeam}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 md:py-4 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl text-[8px] md:text-[9px] font-black text-slate-300 hover:text-blue-400 hover:border-blue-400/30 transition-all uppercase tracking-widest min-w-[100px]"
+          >
+            <Users size={14} /> Equipo
+          </button>
+
           <button 
             onClick={() => navigate(`/family-dashboard/pagos`)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 md:py-4 bg-brand-neon text-brand-deep rounded-xl md:rounded-2xl text-[8px] md:text-[9px] font-black hover:bg-white transition-all uppercase tracking-widest shadow-lg shadow-brand-neon/10"
+            className="flex-[1.5] flex items-center justify-center gap-2 py-2.5 md:py-4 bg-brand-neon text-brand-deep rounded-xl md:rounded-2xl text-[8px] md:text-[9px] font-black hover:bg-white transition-all uppercase tracking-widest shadow-lg shadow-brand-neon/10 min-w-[100px]"
           >
             <CreditCard size={14} /> Pagos <ChevronRight size={14} />
           </button>

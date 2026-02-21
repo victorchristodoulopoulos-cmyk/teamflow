@@ -25,8 +25,8 @@ export default function PortalLayout({
         <div className="p-8">
           {/* Logo Principal TeamFlow */}
           <div className="flex items-center gap-3 mb-10">
-            <div className="w-8 h-8 rounded bg-brand-neon flex items-center justify-center text-[#0D1B2A] font-black font-display text-lg">TF</div>
-            <span className="font-display font-bold text-lg tracking-tight text-white">TEAMFLOW</span>
+            <div className="w-8 h-8 rounded bg-brand-neon flex items-center justify-center text-[#0D1B2A] font-black font-display text-lg">CF</div>
+            <span className="font-display font-bold text-lg tracking-tight text-white">CLUBFLOW</span>
           </div>
 
           {/* Navegación PC */}
@@ -92,7 +92,7 @@ export default function PortalLayout({
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-brand-neon flex items-center justify-center text-[#0D1B2A] font-black text-xs">TF</div>
             <span className="font-display font-bold text-white tracking-tight italic uppercase">
-               {portal === "club" ? clubName : "TeamFlow"}
+               {portal === "club" ? clubName : "CLUBFLOW"}
             </span>
           </div>
           <button onClick={onLogout} className="p-2 text-slate-400 hover:text-white">

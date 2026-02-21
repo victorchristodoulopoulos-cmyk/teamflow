@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/supabaseClient";
-import { ShieldCheck, Loader2, ArrowRight, UserPlus, Lock, Mail, PartyPopper, Users, User, LogOut, CreditCard, Trophy, Plane } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowRight, UserPlus, Lock, Mail, PartyPopper, Users, User, LogOut, CreditCard, Trophy, Plane, Calendar, MapPin, Shield } from "lucide-react";
+
+// Función auxiliar para obtener logos
+const getImageUrl = (path: string | null, bucket: string) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+};
 
 export default function PublicRegistration() {
   const [searchParams] = useSearchParams();
@@ -9,37 +17,36 @@ export default function PublicRegistration() {
   
   const clubId = searchParams.get("club");
   const torneoId = searchParams.get("torneo");
-  const stageId = searchParams.get("stage"); // 🔥 NUEVO: Detectar si es un stage
-  const isStage = !!stageId; // Variable auxiliar para saber en qué modo estamos
+  const stageId = searchParams.get("stage"); 
+  const isStage = !!stageId; 
 
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [success, setSuccess] = useState(false);
   
-  // Contexto del club y el evento (Torneo o Stage)
   const [clubData, setClubData] = useState<any>(null);
-  const [eventData, setEventData] = useState<any>(null); // Reemplaza a torneoData para ser dinámico
-  const [equipos, setEquipos] = useState<any[]>([]);
+  const [eventData, setEventData] = useState<any>(null); 
+  const [clubLogo, setClubLogo] = useState<string | null>(null);
 
-  // Inteligencia de Sesión
   const [authUser, setAuthUser] = useState<any>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [existingPlayers, setExistingPlayers] = useState<any[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('NEW');
 
-  // Estado del formulario
+  // 🔥 Añadido 'categoria' al estado inicial
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     parentName: "",
     parentDni: "",
     playerName: "",
+    playerSurname: "",
     playerDni: "",
     playerDob: "",
     actualTeam: "",
     position: "",
-    equipoId: ""
+    categoria: "" 
   });
 
   useEffect(() => {
@@ -79,23 +86,17 @@ export default function PublicRegistration() {
   const fetchContextData = async () => {
     try {
       const { data: club } = await supabase.from('clubs').select('*').eq('id', clubId).single();
-      if (club) setClubData(club);
+      if (club) {
+        setClubData(club);
+        setClubLogo(getImageUrl(club.logo_path, 'club-logos'));
+      }
 
-      // 🔥 LÓGICA DUAL: Si es stage busca en stages, si es torneo en torneos
       if (isStage) {
         const { data: stage } = await supabase.from('stages').select('*').eq('id', stageId).single();
         if (stage) setEventData(stage);
       } else {
         const { data: torneo } = await supabase.from('torneos').select('*').eq('id', torneoId).single();
         if (torneo) setEventData(torneo);
-
-        const { data: teams } = await supabase
-          .from('equipos')
-          .select('*')
-          .eq('club_id', clubId)
-          .eq('torneo_id', torneoId); 
-        
-        if (teams) setEquipos(teams);
       }
     } catch (err) {
       setErrorMsg("Error cargando la información de la entidad.");
@@ -139,7 +140,6 @@ export default function PublicRegistration() {
     try {
       let currentUserId = authUser?.id;
 
-      // ESCENARIO A: Crear cuenta nueva
       if (!currentUserId) {
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: formData.email,
@@ -162,21 +162,19 @@ export default function PublicRegistration() {
 
       let targetPlayerId = selectedPlayerId;
 
-      // ESCENARIO B: Crear al jugador nuevo
       if (targetPlayerId === 'NEW') {
-        const nameParts = formData.playerName.trim().split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts.slice(1).join(' ') || '';
         targetPlayerId = crypto.randomUUID();
 
+        // 🔥 Ahora cogemos el nombre y apellidos directamente de los inputs
         const { error: playerError } = await supabase.from('jugadores').insert([{
           id: targetPlayerId,
-          name: firstName,
-          surname: lastName,
+          name: formData.playerName.trim(),
+          surname: formData.playerSurname.trim(),
           dni: formData.playerDni,
           birth_date: formData.playerDob,
           actual_team: formData.actualTeam, 
           position: formData.position, 
+          categoria: formData.categoria, 
           status: 'activo'
         }]);
         if (playerError) throw playerError;
@@ -188,9 +186,7 @@ export default function PublicRegistration() {
         if (guardianError) throw guardianError;
       }
 
-      // ESCENARIO C: Inscribir en el Evento (Torneo o Stage)
       if (isStage && stageId && targetPlayerId) {
-        // 🔥 Inscripción a STAGE
         const { data: checkInscripcion } = await supabase
           .from('stage_inscripciones')
           .select('id')
@@ -198,9 +194,7 @@ export default function PublicRegistration() {
           .eq('player_id', targetPlayerId)
           .single();
 
-        if (checkInscripcion) {
-          throw new Error("Este jugador ya está inscrito en este viaje/stage.");
-        }
+        if (checkInscripcion) throw new Error("Este jugador ya está inscrito en este viaje.");
 
         const { error: stageError } = await supabase.from('stage_inscripciones').insert([{
           stage_id: stageId,
@@ -211,7 +205,6 @@ export default function PublicRegistration() {
         if (stageError) throw stageError;
 
       } else if (torneoId && targetPlayerId) {
-        // 🏆 Inscripción a TORNEO
         const { data: checkInscripcion } = await supabase
           .from('torneo_jugadores')
           .select('id')
@@ -219,19 +212,58 @@ export default function PublicRegistration() {
           .eq('player_id', targetPlayerId)
           .single();
 
-        if (checkInscripcion) {
-          throw new Error("Este jugador ya está inscrito en este torneo.");
-        }
+        if (checkInscripcion) throw new Error("Este jugador ya está inscrito en este torneo.");
 
         const { error: torneoJugadorError } = await supabase.from('torneo_jugadores').insert([{
           torneo_id: torneoId,
           player_id: targetPlayerId,
-          team_id: formData.equipoId || null,
           club_id: clubId,
           status: 'inscrito'
         }]);
         if (torneoJugadorError) throw torneoJugadorError;
       }
+
+     // ================================================================
+      // 🔥 MAGIA: AVISAR AL CLUB POR EMAIL DE LA NUEVA INSCRIPCIÓN
+      // ================================================================
+      try {
+        // 1. Buscamos el email del administrador de este club
+        const { data: adminData } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('club_id', clubId)
+          .eq('role', 'club')
+          .single();
+
+        if (adminData && adminData.email) {
+          // 2. Disparamos el correo en segundo plano usando nuestra Edge Function
+          supabase.functions.invoke('send-email', {
+            body: {
+              to: adminData.email,
+              subject: `🎉 Nueva Inscripción: ${formData.playerName} ${formData.playerSurname}`,
+              html: `
+                <div style="font-family: Arial, sans-serif; color: #333; max-w: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
+                  <div style="background-color: #0D1B2A; padding: 20px; text-align: center; border-bottom: 4px solid #A3E635;">
+                    <h2 style="color: #ffffff; margin: 0; font-style: italic;">TEAMFLOW ALERTS</h2>
+                  </div>
+                  <div style="padding: 30px; background-color: #f9fafb;">
+                    <h3 style="margin-top: 0; color: #0D1B2A;">¡Tienes un nuevo jugador inscrito!</h3>
+                    <p style="font-size: 16px;"><strong>Jugador:</strong> ${formData.playerName} ${formData.playerSurname}</p>
+                    <p style="font-size: 16px;"><strong>Evento:</strong> ${eventName}</p>
+                    <p style="font-size: 16px;"><strong>Categoría:</strong> ${formData.categoria || 'Sin especificar'}</p>
+                    <p style="font-size: 16px;"><strong>Contacto Tutor:</strong> ${formData.email}</p>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
+                    <p style="font-size: 14px; color: #666;">Entra en tu panel de control de TeamFlow para asignarlo a su equipo correspondiente.</p>
+                  </div>
+                </div>
+              `
+            }
+          }); // No le ponemos 'await' para que no retrase la pantalla de éxito al padre
+        }
+      } catch (mailError) {
+        console.error("Error silencioso al enviar el mail al club:", mailError);
+      }
+      // ================================================================
 
       setSuccess(true);
       setTimeout(() => navigate("/family-dashboard"), 1500);
@@ -260,19 +292,31 @@ export default function PublicRegistration() {
     </div>
   );
 
+  const eventName = eventData?.name || eventData?.nombre;
+  const eventDate = eventData?.fecha || eventData?.fecha_inicio;
+  const eventLocation = eventData?.ciudad || eventData?.lugar;
+
   return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-[#05080f] relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-neon/5 blur-[120px] rounded-full"></div>
 
-      <div className="w-full max-w-xl bg-[#162032]/90 backdrop-blur-xl border border-white/10 rounded-[40px] p-8 shadow-2xl relative z-10">
-        <div className="text-center mb-10 pb-8 border-b border-white/5">
-          <h1 className="text-3xl font-black text-white italic uppercase tracking-tight">{clubData?.name}</h1>
-          
-          {/* 🔥 Etiqueta Dinámica: Torneo o Stage */}
+      <div className="w-full max-w-xl bg-[#162032]/90 backdrop-blur-xl border border-white/10 rounded-[40px] p-6 md:p-8 shadow-2xl relative z-10">
+        
+        <div className="text-center mb-8 pb-6 border-b border-white/5">
+          {clubLogo ? (
+            <div className="w-20 h-20 mx-auto bg-white rounded-2xl p-2 shadow-xl mb-4 border border-white/20">
+              <img src={clubLogo} alt={clubData?.name} className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 mx-auto bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10">
+              <Shield size={32} className="text-slate-500" />
+            </div>
+          )}
+          <h1 className="text-2xl md:text-3xl font-black text-white italic uppercase tracking-tight">{clubData?.name}</h1>
           <div className="flex items-center justify-center gap-2 mt-2">
             {isStage ? <Plane size={14} className="text-amber-500" /> : <Trophy size={14} className="text-brand-neon" />}
             <p className={`font-bold text-xs uppercase tracking-widest ${isStage ? 'text-amber-500' : 'text-brand-neon'}`}>
-              {isStage ? 'STAGE: ' : 'TORNEO: '} {eventData?.name || eventData?.nombre}
+              {isStage ? 'STAGE / VIAJE' : 'TORNEO OFICIAL'}
             </p>
           </div>
         </div>
@@ -347,7 +391,11 @@ export default function PublicRegistration() {
                 {/* DATOS DEL JUGADOR */}
                 <div className="space-y-4 pt-4 border-t border-white/5">
                   <h3 className="text-[10px] font-black uppercase text-blue-400 tracking-widest flex items-center gap-2"><ShieldCheck size={14}/> Datos del Jugador</h3>
-                  <input required type="text" placeholder="Nombre completo del niño/a" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 font-bold" value={formData.playerName} onChange={e => setFormData({...formData, playerName: e.target.value})} />
+                  {/* 🔥 Cambio Clínico: Dividido en 2 columnas */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input required type="text" placeholder="Nombre del niño/a" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 font-bold" value={formData.playerName} onChange={e => setFormData({...formData, playerName: e.target.value})} />
+                    <input required type="text" placeholder="Apellidos" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 font-bold" value={formData.playerSurname} onChange={e => setFormData({...formData, playerSurname: e.target.value})} />
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <input required type="text" placeholder="DNI del niño/a" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 text-sm" value={formData.playerDni} onChange={e => setFormData({...formData, playerDni: e.target.value})} />
@@ -355,7 +403,7 @@ export default function PublicRegistration() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <input required type="text" placeholder="Equipo Procedencia (Ej: FCB Benjamín)" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 text-sm" value={formData.actualTeam} onChange={e => setFormData({...formData, actualTeam: e.target.value})} />
+                    <input required type="text" placeholder="Equipo Actual (Ej: FCB Benjamín)" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 text-sm" value={formData.actualTeam} onChange={e => setFormData({...formData, actualTeam: e.target.value})} />
                     <select required className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-slate-300 outline-none focus:border-blue-400 appearance-none text-sm" value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})}>
                       <option value="" disabled>Posición Principal</option>
                       <option value="Portero">Portero</option>
@@ -364,16 +412,42 @@ export default function PublicRegistration() {
                       <option value="Delantero">Delantero</option>
                     </select>
                   </div>
+
+                  {/* 🔥 NUEVO: DESPLEGABLE DE CATEGORÍA */}
+                  <div className="relative mt-2">
+                    <select required className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-brand-neon appearance-none font-bold text-sm" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})}>
+                      <option value="" disabled>Selecciona su Categoría Actual</option>
+                      <option value="S7">Sub-7 (S7)</option>
+                      <option value="S8">Sub-8 (S8)</option>
+                      <option value="S9">Sub-9 (S9)</option>
+                      <option value="S10">Sub-10 (S10)</option>
+                      <option value="S11">Sub-11 (S11)</option>
+                      <option value="S12">Sub-12 (S12)</option>
+                      <option value="S13">Sub-13 (S13)</option>
+                      <option value="S14">Sub-14 (S14)</option>
+                      <option value="S15">Sub-15 (S15)</option>
+                      <option value="S16">Sub-16 (S16)</option>
+                      <option value="JUVENIL">Juvenil</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-8 p-5 rounded-2xl bg-[#0a0f18] border border-brand-neon/30 relative overflow-hidden shadow-[0_0_20px_rgba(163,230,53,0.05)]">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/10 rounded-full blur-[40px] pointer-events-none"></div>
+                  <p className="text-[9px] font-black uppercase text-brand-neon tracking-widest mb-3 relative z-10">Resumen de Inscripción</p>
                   
-                  {/* 🔥 Solo pedimos equipo si ES UN TORNEO */}
-                  {!isStage && (
-                    <div className="relative mt-2">
-                      <select required={!isStage} className="w-full bg-[#0a0f18] border border-brand-neon/50 rounded-2xl p-4 text-white outline-none focus:border-brand-neon appearance-none font-bold shadow-[0_0_15px_rgba(163,230,53,0.1)]" value={formData.equipoId} onChange={e => setFormData({...formData, equipoId: e.target.value})}>
-                        <option value="">Selecciona Categoría a inscribir</option>
-                        {equipos.map(eq => <option key={eq.id} value={eq.id}>{eq.name}</option>)}
-                      </select>
+                  <div className="flex items-start gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      {isStage ? <Plane size={20} className="text-white"/> : <Trophy size={20} className="text-white"/>}
                     </div>
-                  )}
+                    <div>
+                      <h4 className="font-bold text-white leading-tight mb-2">{eventName}</h4>
+                      <div className="flex flex-col gap-1 text-xs text-slate-400 font-medium">
+                        {eventLocation && <span className="flex items-center gap-2"><MapPin size={12}/> {eventLocation}</span>}
+                        {eventDate && <span className="flex items-center gap-2"><Calendar size={12}/> {isStage ? eventDate : new Date(eventDate).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <button type="submit" disabled={submitting} className="w-full bg-brand-neon hover:bg-white text-brand-deep font-black uppercase tracking-widest py-4 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(163,230,53,0.3)]">
@@ -415,7 +489,7 @@ export default function PublicRegistration() {
                       </div>
                       <span className="font-bold">{player.name} {player.surname}</span>
                     </div>
-                    <span className="text-[10px] font-black uppercase opacity-50">{player.position || 'Jugador'}</span>
+                    <span className="text-[10px] font-black uppercase opacity-50">{player.categoria || player.position || 'Jugador'}</span>
                   </div>
                 ))}
 
@@ -433,13 +507,17 @@ export default function PublicRegistration() {
 
             {selectedPlayerId === 'NEW' && (
               <div className="space-y-4 p-6 bg-black/20 rounded-3xl border border-white/5 animate-in slide-in-from-top-4">
-                <input required type="text" placeholder="Nombre completo" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400" value={formData.playerName} onChange={e => setFormData({...formData, playerName: e.target.value})} />
+                {/* 🔥 Cambio Clínico: Dividido en 2 columnas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input required type="text" placeholder="Nombre del jugador/a" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 font-bold" value={formData.playerName} onChange={e => setFormData({...formData, playerName: e.target.value})} />
+                  <input required type="text" placeholder="Apellidos" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 font-bold" value={formData.playerSurname} onChange={e => setFormData({...formData, playerSurname: e.target.value})} />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <input required type="text" placeholder="DNI" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400" value={formData.playerDni} onChange={e => setFormData({...formData, playerDni: e.target.value})} />
                   <input required type="date" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 color-scheme-dark" value={formData.playerDob} onChange={e => setFormData({...formData, playerDob: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <input required type="text" placeholder="Equipo Procedencia" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400" value={formData.actualTeam} onChange={e => setFormData({...formData, actualTeam: e.target.value})} />
+                  <input required type="text" placeholder="Equipo actual" className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400" value={formData.actualTeam} onChange={e => setFormData({...formData, actualTeam: e.target.value})} />
                   <select required className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-slate-300 outline-none focus:border-blue-400 appearance-none" value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})}>
                     <option value="" disabled>Posición Principal</option>
                     <option value="Portero">Portero</option>
@@ -448,19 +526,44 @@ export default function PublicRegistration() {
                     <option value="Delantero">Delantero</option>
                   </select>
                 </div>
+                
+                {/* 🔥 NUEVO: DESPLEGABLE DE CATEGORÍA (Modo logueado añadiendo hijo) */}
+                <div className="relative mt-2">
+                  <select required className="w-full bg-[#0a0f18] border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-400 appearance-none font-bold text-sm" value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})}>
+                    <option value="" disabled>Selecciona su Categoría Actual</option>
+                    <option value="S7">Sub-7 (S7)</option>
+                    <option value="S8">Sub-8 (S8)</option>
+                    <option value="S9">Sub-9 (S9)</option>
+                    <option value="S10">Sub-10 (S10)</option>
+                    <option value="S11">Sub-11 (S11)</option>
+                    <option value="S12">Sub-12 (S12)</option>
+                    <option value="S13">Sub-13 (S13)</option>
+                    <option value="S14">Sub-14 (S14)</option>
+                    <option value="S15">Sub-15 (S15)</option>
+                    <option value="S16">Sub-16 (S16)</option>
+                    <option value="JUVENIL">Juvenil</option>
+                  </select>
+                </div>
               </div>
             )}
 
-            {/* 🔥 Solo pedimos destino de equipo si ES UN TORNEO */}
-            {!isStage && (
-              <div className="relative border-t border-white/5 pt-6">
-                <label className="text-[10px] font-black uppercase text-brand-neon tracking-widest block mb-3 ml-2">Destino de la Inscripción</label>
-                <select required={!isStage} className="w-full bg-[#0a0f18] border border-brand-neon/50 rounded-2xl p-4 text-white outline-none focus:border-brand-neon appearance-none font-bold shadow-[0_0_15px_rgba(163,230,53,0.1)]" value={formData.equipoId} onChange={e => setFormData({...formData, equipoId: e.target.value})}>
-                  <option value="">Selecciona Categoría en {clubData?.name}</option>
-                  {equipos.map(eq => <option key={eq.id} value={eq.id}>{eq.name}</option>)}
-                </select>
+            <div className="mt-8 p-5 rounded-2xl bg-[#0a0f18] border border-brand-neon/30 relative overflow-hidden shadow-[0_0_20px_rgba(163,230,53,0.05)]">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/10 rounded-full blur-[40px] pointer-events-none"></div>
+              <p className="text-[9px] font-black uppercase text-brand-neon tracking-widest mb-3 relative z-10">Resumen de Inscripción</p>
+              
+              <div className="flex items-start gap-4 relative z-10">
+                <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                  {isStage ? <Plane size={20} className="text-white"/> : <Trophy size={20} className="text-white"/>}
+                </div>
+                <div>
+                  <h4 className="font-bold text-white leading-tight mb-2">{eventName}</h4>
+                  <div className="flex flex-col gap-1 text-xs text-slate-400 font-medium">
+                    {eventLocation && <span className="flex items-center gap-2"><MapPin size={12}/> {eventLocation}</span>}
+                    {eventDate && <span className="flex items-center gap-2"><Calendar size={12}/> {isStage ? eventDate : new Date(eventDate).toLocaleDateString()}</span>}
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
 
             <button type="submit" disabled={submitting} className="w-full bg-brand-neon hover:bg-white text-brand-deep font-black uppercase tracking-widest py-4 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(163,230,53,0.3)]">
               {submitting ? <Loader2 className="animate-spin" size={24} /> : <>CONFIRMAR INSCRIPCIÓN <ArrowRight size={20} /></>}

@@ -77,6 +77,14 @@ export default function ClubTournamentDetail() {
   const [logisticsData, setLogisticsData] = useState<{hotel: any, transport: any} | null>(null);
   const [loadingLogistics, setLoadingLogistics] = useState(false);
 
+  // BOLSA DE JUGADORES SIN ASIGNAR
+  const [unassignedPlayers, setUnassignedPlayers] = useState<any[]>([]);
+  const [isUnassignedModalOpen, setIsUnassignedModalOpen] = useState(false);
+  const [assigningPlayerId, setAssigningPlayerId] = useState<string | null>(null);
+
+  // 🔥 NUEVO: ESTADO PARA MOSTRAR/OCULTAR EQUIPOS A PADRES
+  const [showTeamToFamilies, setShowTeamToFamilies] = useState(false);
+
   useEffect(() => {
     if (torneoId) loadData();
   }, [torneoId]);
@@ -87,12 +95,15 @@ export default function ClubTournamentDetail() {
       const { club_id } = await getMyClubContext();
       setClubId(club_id);
       
-      const [details, torneoTeams] = await Promise.all([
+      const [details, torneoTeams, clubTorneoData] = await Promise.all([
         getClubTournamentDetails(club_id, torneoId!),
-        getTournamentTeams(club_id, torneoId!)
+        getTournamentTeams(club_id, torneoId!),
+        // Buscamos el club_torneos para saber si mostramos o no el equipo
+        supabase.from('club_torneos').select('mostrar_equipo').eq('club_id', club_id).eq('torneo_id', torneoId).single()
       ]);
 
       setTournament(details);
+      if (clubTorneoData.data) setShowTeamToFamilies(clubTorneoData.data.mostrar_equipo);
       
       const enrichedTeams = await Promise.all(torneoTeams.map(async (t) => {
         const staff = await getTeamStaff(t.id);
@@ -100,6 +111,15 @@ export default function ClubTournamentDetail() {
         return { ...t, mainCoach };
       }));
       setTeams(enrichedTeams);
+
+      const { data: unassignedData } = await supabase
+        .from('torneo_jugadores')
+        .select('*, jugadores(*)')
+        .eq('club_id', club_id)
+        .eq('torneo_id', torneoId)
+        .is('team_id', null);
+      
+      if (unassignedData) setUnassignedPlayers(unassignedData);
 
       if (enrichedTeams.length > 0) {
         handleSelectTeam(enrichedTeams[0]);
@@ -183,6 +203,30 @@ export default function ClubTournamentDetail() {
     }
   };
 
+  const handleAssignUnassigned = async (torneoJugadorId: string, teamId: string) => {
+    if (!teamId) return;
+    setAssigningPlayerId(torneoJugadorId);
+    try {
+      const { error } = await supabase
+        .from('torneo_jugadores')
+        .update({ team_id: teamId })
+        .eq('id', torneoJugadorId);
+      if (error) throw error;
+
+      setUnassignedPlayers(prev => prev.filter(p => p.id !== torneoJugadorId));
+      
+      if (selectedTeamId === teamId) {
+        const players = await getTeamPlayersWithFinance(teamId, torneoId!);
+        setTeamPlayers(players || []);
+      }
+    } catch (e) {
+      console.error("Error asignando desde la bolsa:", e);
+      alert("Error asignando jugador al equipo.");
+    } finally {
+      setAssigningPlayerId(null);
+    }
+  };
+
   const handleSaveFinances = async () => {
     const numPrice = parseFloat(editPrice) || 0;
     const numMatricula = parseFloat(matriculaPrice) || 0;
@@ -213,6 +257,17 @@ export default function ClubTournamentDetail() {
       alert(`Hubo un error al guardar: ${e.message}`);
     } finally {
       setSavingFinances(false);
+    }
+  };
+
+  // 🔥 NUEVO: Función para alternar la visibilidad
+  const toggleVisibility = async () => {
+    try {
+      const newValue = !showTeamToFamilies;
+      await supabase.from('club_torneos').update({ mostrar_equipo: newValue }).eq('club_id', clubId).eq('torneo_id', torneoId);
+      setShowTeamToFamilies(newValue);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -345,9 +400,42 @@ export default function ClubTournamentDetail() {
              </form>
           </div>
 
+          {/* 🔥 BANNER NARANJA: JUGADORES SIN EQUIPO */}
+          {unassignedPlayers.length > 0 && (
+            <button 
+              onClick={() => setIsUnassignedModalOpen(true)}
+              className="w-full flex items-center justify-between p-5 rounded-[24px] bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 hover:border-orange-500/50 transition-all group shadow-[0_0_20px_rgba(249,115,22,0.1)]"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <AlertCircle size={20} className="animate-pulse" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-black text-orange-500 uppercase tracking-tight">Sin Equipo Asignado</p>
+                  <p className="text-[9px] font-bold text-orange-400/80 uppercase tracking-widest mt-0.5">Asignar a plantillas</p>
+                </div>
+              </div>
+              <span className="bg-orange-500 text-brand-deep font-black text-sm px-3 py-1.5 rounded-lg shadow-lg">
+                {unassignedPlayers.length}
+              </span>
+            </button>
+          )}
+
           <div className="flex justify-between items-center px-2 pt-2">
-             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Equipos Confirmados</h3>
-             <span className="text-[10px] font-black bg-white/5 text-slate-400 px-2 py-1 rounded-md">{teams.length}</span>
+             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Equipos Confirmados ({teams.length})</h3>
+             
+             {/* 🔥 CLINICAL CHANGE: Botón Ocultar/Mostrar Equipos */}
+             <button 
+               onClick={toggleVisibility}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                 showTeamToFamilies 
+                   ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
+                   : 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10'
+               }`}
+             >
+               <span className={`w-1.5 h-1.5 rounded-full ${showTeamToFamilies ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></span>
+               {showTeamToFamilies ? 'Público para padres' : 'Oculto a padres'}
+             </button>
           </div>
           
           <div className="space-y-2">
@@ -494,6 +582,67 @@ export default function ClubTournamentDetail() {
           )}
         </div>
       </div>
+
+      {/* ==========================================
+          🚀 MODAL: JUGADORES SIN EQUIPO ASIGNADO
+          ========================================== */}
+      {isUnassignedModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsUnassignedModalOpen(false)} />
+           <div className="relative bg-[#162032] border border-orange-500/30 w-full max-w-2xl rounded-[32px] p-6 md:p-8 shadow-[0_0_50px_rgba(249,115,22,0.15)] animate-in zoom-in-95 max-h-[85vh] flex flex-col">
+              <div className="flex justify-between items-start mb-6 border-b border-white/5 pb-4">
+                 <div>
+                    <h3 className="text-xl md:text-2xl font-display font-black text-white uppercase italic tracking-tighter flex items-center gap-2">
+                      <AlertCircle className="text-orange-500" /> Bolsa de Jugadores
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                      Asigna a los {unassignedPlayers.length} jugadores inscritos a sus equipos
+                    </p>
+                 </div>
+                 <button onClick={() => setIsUnassignedModalOpen(false)} className="text-slate-500 hover:text-white p-2 bg-white/5 rounded-full"><X size={20}/></button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                 {unassignedPlayers.length === 0 ? (
+                    <div className="text-center text-slate-500 py-10 flex flex-col items-center">
+                       <CheckCircle2 size={40} className="text-emerald-500 mb-4 opacity-50" />
+                       <p className="text-sm font-bold text-white">Todo en orden</p>
+                       <p className="text-[10px] font-black uppercase tracking-widest mt-2">Todos los jugadores han sido asignados.</p>
+                    </div>
+                 ) : (
+                    unassignedPlayers.map(p => (
+                       <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-[#0D1B2A] border border-white/5 rounded-2xl gap-4 hover:border-orange-500/30 transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                             <div className="w-10 h-10 rounded-xl bg-orange-500/10 text-orange-500 font-black text-xs flex items-center justify-center shrink-0 border border-orange-500/20">
+                                {p.jugadores?.name?.charAt(0)}
+                             </div>
+                             <div className="min-w-0">
+                                <p className="text-sm font-bold text-white uppercase truncate">{p.jugadores?.name} {p.jugadores?.surname}</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-0.5 truncate">
+                                  Cat: <span className="text-slate-300">{p.jugadores?.categoria || 'N/A'}</span> • {p.jugadores?.position || 'N/A'}
+                                </p>
+                             </div>
+                          </div>
+                          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                             <select 
+                                className="bg-[#162032] border border-white/10 text-white text-[10px] md:text-xs font-bold uppercase tracking-widest px-3 py-3 rounded-xl outline-none focus:border-orange-500 flex-1 sm:w-48 appearance-none"
+                                onChange={(e) => handleAssignUnassigned(p.id, e.target.value)}
+                                value=""
+                             >
+                                <option value="" disabled>Seleccionar Equipo...</option>
+                                {teams.map(t => (
+                                   <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                             </select>
+                             {assigningPlayerId === p.id && <Loader2 size={16} className="animate-spin text-orange-500 shrink-0" />}
+                          </div>
+                       </div>
+                    ))
+                 )}
+              </div>
+           </div>
+        </div>
+      )}
 
       {/* ==========================================
           🚀 MODAL A PANTALLA COMPLETA: LOGÍSTICA
